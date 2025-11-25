@@ -1,0 +1,19 @@
+{
+  "collectionName": "components_dynamic_zone_feature_grids",
+  "info": {
+    "displayName": "Feature Grid",
+    "icon": "apps",
+    "description": "Grid of feature highlights with icons"
+  },
+  "options": {},
+  "attributes": {
+    "title": {
+      "type": "string"
+    },
+    "features": {
+      "type": "component",
+      "repeatable": true,
+      "component": "shared.feature-item"
+    }
+  }
+}
