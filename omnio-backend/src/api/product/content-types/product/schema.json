@@ -5,7 +5,7 @@
     "singularName": "product",
     "pluralName": "products",
     "displayName": "Product",
-    "description": ""
+    "description": "E-commerce product with category relations and variants"
   },
   "options": {
     "draftAndPublish": true
@@ -23,8 +23,7 @@
           "localized": true
         }
       },
-      "required": true,
-      "unique": true
+      "required": true
     },
     "slug": {
       "type": "uid",
@@ -62,19 +61,13 @@
       }
     },
     "category": {
-      "type": "string",
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::category.category",
+      "inversedBy": "products",
       "pluginOptions": {
         "i18n": {
-          "localized": true
-        }
-      },
-      "required": true
-    },
-    "subcategory": {
-      "type": "string",
-      "pluginOptions": {
-        "i18n": {
-          "localized": true
+          "localized": false
         }
       }
     },
@@ -87,12 +80,14 @@
       }
     },
     "rating": {
-      "type": "integer",
+      "type": "decimal",
       "pluginOptions": {
         "i18n": {
           "localized": false
         }
-      }
+      },
+      "min": 0,
+      "max": 5
     },
     "reviewsCount": {
       "type": "integer",
@@ -100,7 +95,8 @@
         "i18n": {
           "localized": false
         }
-      }
+      },
+      "default": 0
     },
     "inStock": {
       "type": "boolean",
@@ -121,10 +117,7 @@
       },
       "multiple": false,
       "required": true,
-      "allowedTypes": [
-        "images",
-        "files"
-      ]
+      "allowedTypes": ["images"]
     },
     "images": {
       "type": "media",
@@ -134,10 +127,7 @@
         }
       },
       "multiple": true,
-      "allowedTypes": [
-        "images",
-        "files"
-      ]
+      "allowedTypes": ["images"]
     },
     "specifications": {
       "type": "blocks",
@@ -162,6 +152,15 @@
           "localized": true
         }
       }
+    },
+    "isFeatured": {
+      "type": "boolean",
+      "pluginOptions": {
+        "i18n": {
+          "localized": false
+        }
+      },
+      "default": false
     },
     "cart_items": {
       "type": "relation",
