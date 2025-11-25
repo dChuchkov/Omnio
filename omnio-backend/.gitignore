@@ -129,3 +129,7 @@ dist
 build
 .strapi-updater.json
 .strapi-cloud.json
+
+# Auto-generated Strapi type definitions
+types/generated/components.d.ts
+types/generated/contentTypes.d.ts
