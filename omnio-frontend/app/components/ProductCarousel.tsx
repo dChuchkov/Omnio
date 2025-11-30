@@ -6,7 +6,8 @@ import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { ChevronLeft, ChevronRight } from "lucide-react"
-import type { Product } from "@/lib/data"
+import type { Product } from "@/lib/types"
+import { getStrapiMedia } from "@/lib/api"
 
 interface ProductCarouselProps {
   products: Product[]
@@ -58,9 +59,8 @@ export default function ProductCarousel({ products, title, viewAllLink }: Produc
         <Button
           variant="outline"
           size="icon"
-          className={`absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white shadow-lg ${
-            !canGoPrev ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-50"
-          }`}
+          className={`absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white shadow-lg ${!canGoPrev ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-50"
+            }`}
           onClick={prevSlide}
           disabled={!canGoPrev}
         >
@@ -70,9 +70,8 @@ export default function ProductCarousel({ products, title, viewAllLink }: Produc
         <Button
           variant="outline"
           size="icon"
-          className={`absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white shadow-lg ${
-            !canGoNext ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-50"
-          }`}
+          className={`absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white shadow-lg ${!canGoNext ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-50"
+            }`}
           onClick={nextSlide}
           disabled={!canGoNext}
         >
@@ -86,7 +85,7 @@ export default function ProductCarousel({ products, title, viewAllLink }: Produc
               <Card key={product.id} className="flex flex-col h-full bg-white hover:shadow-lg transition-shadow">
                 <CardHeader className="flex-shrink-0 p-4">
                   <div className="relative aspect-square overflow-hidden rounded-lg bg-gray-100">
-                    <Image src={product.image || "/placeholder.svg"} alt={product.name} fill className="object-cover" />
+                    <Image src={getStrapiMedia(product.image?.url) || "/placeholder.svg"} alt={product.name} fill className="object-cover" />
                     {product.originalPrice && (
                       <div className="absolute top-2 left-2 bg-red-500 text-white px-2 py-1 rounded text-xs font-bold">
                         -{Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}%
@@ -96,7 +95,7 @@ export default function ProductCarousel({ products, title, viewAllLink }: Produc
                   <CardTitle className="line-clamp-2 min-h-[2.5rem] text-sm">{product.name}</CardTitle>
                 </CardHeader>
                 <CardContent className="flex-grow p-4 pt-0">
-                  <p className="text-xs text-gray-500 mb-1">{product.brand}</p>
+                  <p className="text-xs text-gray-500 mb-1">{product.category?.name || 'Uncategorized'}</p>
                   <div className="flex items-center space-x-2">
                     <p className="text-lg font-bold text-red-600">${product.price.toFixed(2)}</p>
                     {product.originalPrice && (
@@ -105,7 +104,7 @@ export default function ProductCarousel({ products, title, viewAllLink }: Produc
                   </div>
                 </CardContent>
                 <CardFooter className="mt-auto p-4 pt-0">
-                  <Link href={`/product/${product.id}`} className="w-full">
+                  <Link href={`/product/${product.slug}`} className="w-full">
                     <Button className="w-full text-sm bg-blue-600 hover:bg-blue-700 text-white">View Product</Button>
                   </Link>
                 </CardFooter>
@@ -120,9 +119,8 @@ export default function ProductCarousel({ products, title, viewAllLink }: Produc
             <button
               key={index}
               onClick={() => goToSlide(index)}
-              className={`w-3 h-3 rounded-full transition-colors ${
-                index === currentIndex ? "bg-blue-600" : "bg-gray-300 hover:bg-gray-400"
-              }`}
+              className={`w-3 h-3 rounded-full transition-colors ${index === currentIndex ? "bg-blue-600" : "bg-gray-300 hover:bg-gray-400"
+                }`}
             />
           ))}
         </div>
