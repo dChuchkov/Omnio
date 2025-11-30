@@ -134,7 +134,6 @@ export interface ProductCarouselComponent {
 export interface GlobalSettings {
     id: number;
     siteName: string;
-    siteDescription: string | null;
     header: HeaderComponent;
     footer: FooterComponent;
     defaultSEO: SEOComponent | null;

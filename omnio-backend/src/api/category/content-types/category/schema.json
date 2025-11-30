@@ -26,8 +26,7 @@
       }
     },
     "slug": {
-      "type": "uid",
-      "targetField": "name",
+      "type": "text",
       "required": true
     },
     "description": {
@@ -42,7 +41,9 @@
       "type": "media",
       "multiple": false,
       "required": false,
-      "allowedTypes": ["images"],
+      "allowedTypes": [
+        "images"
+      ],
       "pluginOptions": {
         "i18n": {
           "localized": false
