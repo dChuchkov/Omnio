@@ -25,6 +25,11 @@
       "component": "shared.link-item",
       "repeatable": true
     },
+    "socialLinks": {
+      "type": "component",
+      "component": "shared.link-item",
+      "repeatable": true
+    },
     "copyrightText": {
       "type": "string"
     },
