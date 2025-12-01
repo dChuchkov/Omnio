@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Star, MessageCircle } from "lucide-react"
-import type { Product } from "@/lib/data"
+import type { Product, BlockContent } from "@/lib/types"
 
 interface ProductTabsProps {
   product: Product
@@ -17,6 +17,46 @@ interface Review {
   rating: number
   comment: string
   date: string
+}
+
+const BlockRenderer = ({ content }: { content: BlockContent[] | null }) => {
+  if (!content) return null
+  return (
+    <div className="space-y-4">
+      {content.map((block, index) => {
+        switch (block.type) {
+          case "paragraph":
+            return (
+              <p key={index} className="text-gray-700">
+                {block.children?.map((child, i) => (
+                  <span key={i} className={`${child.bold ? "font-bold" : ""} ${child.italic ? "italic" : ""} ${child.underline ? "underline" : ""} ${child.strikethrough ? "line-through" : ""}`}>
+                    {child.text}
+                  </span>
+                ))}
+              </p>
+            )
+          case "heading":
+            const HeadingTag = `h${block.level || 2}` as keyof JSX.IntrinsicElements
+            return (
+              <HeadingTag key={index} className="font-bold text-gray-900 mt-4 mb-2">
+                {block.children?.map((child, i) => child.text).join("")}
+              </HeadingTag>
+            )
+          case "list":
+            const ListTag = block.format === "ordered" ? "ol" : "ul"
+            return (
+              <ListTag key={index} className={`list-inside ${block.format === "ordered" ? "list-decimal" : "list-disc"} space-y-1`}>
+                {block.children?.map((child, i) => (
+                  <li key={i}>{child.text}</li>
+                ))}
+              </ListTag>
+            )
+          default:
+            return null
+        }
+      })}
+    </div>
+  )
 }
 
 export default function ProductTabs({ product }: ProductTabsProps) {
@@ -50,9 +90,8 @@ export default function ProductTabs({ product }: ProductTabsProps) {
     return Array.from({ length: 5 }, (_, index) => (
       <Star
         key={index}
-        className={`h-4 w-4 ${interactive ? "cursor-pointer hover:text-yellow-400" : ""} ${
-          index < rating ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
-        }`}
+        className={`h-4 w-4 ${interactive ? "cursor-pointer hover:text-yellow-400" : ""} ${index < rating ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
+          }`}
         onClick={interactive ? () => setNewReview((prev) => ({ ...prev, rating: index + 1 })) : undefined}
       />
     ))
@@ -63,19 +102,17 @@ export default function ProductTabs({ product }: ProductTabsProps) {
       {/* Tab Navigation */}
       <div className="flex border-b">
         <button
-          className={`px-6 py-3 font-medium text-sm ${
-            activeTab === "specifications"
+          className={`px-6 py-3 font-medium text-sm ${activeTab === "specifications"
               ? "border-b-2 border-blue-600 text-blue-600"
               : "text-gray-600 hover:text-gray-900"
-          }`}
+            }`}
           onClick={() => setActiveTab("specifications")}
         >
           SPECIFICATIONS
         </button>
         <button
-          className={`px-6 py-3 font-medium text-sm ${
-            activeTab === "comments" ? "border-b-2 border-blue-600 text-blue-600" : "text-gray-600 hover:text-gray-900"
-          }`}
+          className={`px-6 py-3 font-medium text-sm ${activeTab === "comments" ? "border-b-2 border-blue-600 text-blue-600" : "text-gray-600 hover:text-gray-900"
+            }`}
           onClick={() => setActiveTab("comments")}
           data-tab="comments"
         >
@@ -90,26 +127,20 @@ export default function ProductTabs({ product }: ProductTabsProps) {
             <CardContent className="p-6">
               <h3 className="text-lg font-semibold mb-4">Product Specifications</h3>
               <div className="space-y-3">
-                {Object.entries(product.specifications).map(([key, value]) => (
-                  <div key={key} className="flex justify-between border-b py-2">
-                    <span className="font-medium text-gray-700">{key}</span>
-                    <span className="text-gray-600">{value}</span>
-                  </div>
-                ))}
+                <BlockRenderer content={product.specifications} />
               </div>
 
               <div className="mt-6">
                 <h4 className="font-semibold mb-3">Description</h4>
                 <div className="text-gray-700">
-                  <p className="mb-3">{product.description}</p>
-                  <ul className="space-y-2">
-                    {product.features.map((feature, index) => (
-                      <li key={index} className="flex items-center">
-                        <span className="mr-2 text-green-600">•</span>
-                        <span>{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  <BlockRenderer content={product.description} />
+
+                  {product.features && (
+                    <div className="mt-4">
+                      <h4 className="font-semibold mb-2">Features</h4>
+                      <BlockRenderer content={product.features} />
+                    </div>
+                  )}
                 </div>
               </div>
             </CardContent>

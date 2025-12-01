@@ -36,6 +36,9 @@ export interface Product {
     specifications: BlockContent[] | null;
     features: BlockContent[] | null;
     category: Category | null;
+    brand: string | null;
+    rating: number | null;
+    reviewsCount: number | null;
     createdAt: string;
     updatedAt: string;
     publishedAt: string;
@@ -137,7 +140,7 @@ export interface GlobalSettings {
     siteDescription: string | null;
     header: HeaderComponent;
     footer: FooterComponent;
-    defaultSEO: SEOComponent | null;
+    defaultSeo: SEOComponent | null;
 }
 
 export interface HeaderComponent {
@@ -153,7 +156,6 @@ export interface FooterComponent {
     companyDescription: string | null;
     quickLinks: LinkItem[];
     legalLinks: LinkItem[];
-    socialLinks: LinkItem[];
     newsletterTitle: string | null;
     copyrightText: string | null;
 }

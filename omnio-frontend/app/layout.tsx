@@ -12,15 +12,28 @@ export const metadata = {
   generator: "v0.app",
 }
 
-export default function RootLayout({
+import { getParentCategories } from "@/lib/api"
+import Header from "./components/Header"
+import Footer from "./components/Footer"
+
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const categoriesResponse = await getParentCategories('en');
+  const categories = categoriesResponse.data;
+
   return (
     <html lang="en">
       <body className={inter.className}>
-        <ClientLayout>{children}</ClientLayout>
+        <ClientLayout
+          categories={categories}
+          header={<Header />}
+          footer={<Footer />}
+        >
+          {children}
+        </ClientLayout>
       </body>
     </html>
   )

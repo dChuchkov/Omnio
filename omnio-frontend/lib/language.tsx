@@ -1,7 +1,7 @@
 "use client"
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 
-type Locale = 'en' | 'de';
+export type Locale = 'en' | 'de';
 
 interface LanguageContextType {
     locale: Locale;

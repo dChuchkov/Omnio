@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
 import { useAuth } from "./auth"
-import type { Product } from "./data"
+import type { Product } from "./types"
 
 interface CartItem {
   product: Product

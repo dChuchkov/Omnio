@@ -6,12 +6,12 @@ import { Button } from "@/components/ui/button"
 
 interface ProductRatingProps {
   productId: number
+  rating: number
+  totalReviews: number
   onReviewsClick?: () => void
 }
 
-export default function ProductRating({ productId, onReviewsClick }: ProductRatingProps) {
-  const [rating] = useState(0) // This would come from your database
-  const [totalReviews] = useState(0) // This would come from your database
+export default function ProductRating({ productId, rating, totalReviews, onReviewsClick }: ProductRatingProps) {
 
   const renderStars = (rating: number) => {
     return Array.from({ length: 5 }, (_, index) => (

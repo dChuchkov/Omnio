@@ -11,7 +11,8 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
 import { Grid, List, ChevronLeft, ChevronRight } from "lucide-react"
-import type { Product } from "@/lib/data"
+import type { Product } from "@/lib/types"
+import { getStrapiMedia } from "@/lib/api"
 
 interface CategoryPageClientProps {
   products: Product[]
@@ -33,7 +34,7 @@ export default function CategoryPageClient({ products, categoryName }: CategoryP
 
   // Brand filter
   const availableBrands = useMemo(() => {
-    const brands = new Set(products.map((p) => p.brand))
+    const brands = new Set(products.map((p) => p.brand || 'Unknown'))
     return Array.from(brands).sort()
   }, [products])
   const [selectedBrands, setSelectedBrands] = useState<string[]>([])
@@ -42,7 +43,8 @@ export default function CategoryPageClient({ products, categoryName }: CategoryP
   const filteredAndSortedProducts = useMemo(() => {
     const filtered = products.filter((product) => {
       const inPriceRange = product.price >= priceRange[0] && product.price <= priceRange[1]
-      const inBrandFilter = selectedBrands.length === 0 || selectedBrands.includes(product.brand)
+      const productBrand = product.brand || 'Unknown'
+      const inBrandFilter = selectedBrands.length === 0 || selectedBrands.includes(productBrand)
       return inPriceRange && inBrandFilter
     })
 
@@ -280,7 +282,7 @@ export default function CategoryPageClient({ products, categoryName }: CategoryP
                   <CardHeader className="flex-shrink-0">
                     <div className="relative aspect-square overflow-hidden rounded-lg">
                       <Image
-                        src={product.image || "/placeholder.svg"}
+                        src={getStrapiMedia(product.image?.url) || "/placeholder.svg"}
                         alt={product.name}
                         fill
                         className="object-cover"
@@ -303,7 +305,7 @@ export default function CategoryPageClient({ products, categoryName }: CategoryP
                     </div>
                   </CardContent>
                   <CardFooter className="mt-auto pt-4">
-                    <Link href={`/product/${product.id}`} className="w-full">
+                    <Link href={product.slug ? `/product/${product.slug}` : '#'} className="w-full">
                       <Button className="w-full text-sm bg-blue-600 hover:bg-blue-700 text-white">View Product</Button>
                     </Link>
                   </CardFooter>
@@ -315,11 +317,11 @@ export default function CategoryPageClient({ products, categoryName }: CategoryP
               {currentProducts.map((product) => (
                 <Card key={product.id} className="flex flex-row p-4 hover:shadow-lg transition-shadow">
                   <div className="relative w-32 h-32 overflow-hidden rounded-lg flex-shrink-0">
-                    <Image src={product.image || "/placeholder.svg"} alt={product.name} fill className="object-cover" />
+                    <Image src={getStrapiMedia(product.image?.url) || "/placeholder.svg"} alt={product.name} fill className="object-cover" />
                   </div>
                   <div className="flex-1 ml-4 flex flex-col justify-between">
                     <div>
-                      <Link href={`/product/${product.id}`} className="font-semibold hover:text-blue-600">
+                      <Link href={product.slug ? `/product/${product.slug}` : '#'} className="font-semibold hover:text-blue-600">
                         {product.name}
                       </Link>
                       <p className="text-xs text-gray-600 mt-1">{product.brand}</p>
@@ -331,7 +333,7 @@ export default function CategoryPageClient({ products, categoryName }: CategoryP
                           <p className="text-sm text-gray-400 line-through">${product.originalPrice.toFixed(2)}</p>
                         )}
                       </div>
-                      <Link href={`/product/${product.id}`}>
+                      <Link href={product.slug ? `/product/${product.slug}` : '#'}>
                         <Button className="bg-blue-600 hover:bg-blue-700 text-white">View Product</Button>
                       </Link>
                     </div>
