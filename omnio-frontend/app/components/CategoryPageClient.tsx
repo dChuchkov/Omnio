@@ -90,6 +90,13 @@ export default function CategoryPageClient({ products, categoryName }: CategoryP
 
   return (
     <div className="space-y-6">
+      {/* Breadcrumbs */}
+      <nav className="flex items-center text-sm text-gray-500 mb-4">
+        <Link href="/" className="hover:text-blue-600 transition-colors">Home</Link>
+        <ChevronRight className="h-4 w-4 mx-2" />
+        <span className="font-medium text-gray-900">{categoryName}</span>
+      </nav>
+
       {/* Category Title with Refined Styling */}
       <div className="bg-white border-l-4 border-blue-600 rounded-lg px-6 py-6 shadow-sm">
         <h1 className="text-3xl font-bold text-gray-900">{categoryName}</h1>

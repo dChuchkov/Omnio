@@ -80,7 +80,7 @@ export default function ProductInfo({ product }: ProductInfoProps) {
           </div>
         )}
         <div className="flex items-baseline space-x-2">
-          <span className="text-4xl font-bold text-red-600">${product.price.toFixed(2)}</span>
+          <span className="text-4xl font-bold text-red-600">${product.price?.toFixed(2) || 'N/A'}</span>
           {product.originalPrice && (
             <span className="text-sm text-green-600 font-medium">
               ({Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}% off)
