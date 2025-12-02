@@ -26,8 +26,14 @@
       }
     },
     "slug": {
-      "type": "text",
-      "required": true
+      "type": "uid",
+      "targetField": "title",
+      "required": true,
+      "pluginOptions": {
+        "i18n": {
+          "localized": false
+        }
+      }
     },
     "seo": {
       "type": "component",

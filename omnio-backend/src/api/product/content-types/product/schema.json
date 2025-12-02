@@ -26,8 +26,14 @@
       "required": true
     },
     "slug": {
-      "type": "text",
-      "required": true
+      "type": "uid",
+      "targetField": "name",
+      "required": true,
+      "pluginOptions": {
+        "i18n": {
+          "localized": false
+        }
+      }
     },
     "price": {
       "type": "decimal",
