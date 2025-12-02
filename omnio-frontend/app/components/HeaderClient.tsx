@@ -19,11 +19,11 @@ import {
 import { useAuth } from "@/lib/auth"
 import { useCart } from "@/lib/cart"
 import { useWishlist } from "@/lib/wishlist"
-import { useLanguage } from "@/lib/language"
+import { useLanguage, type Locale } from "@/lib/language"
 import MegaMenu from "./MegaMenu"
-import type { LinkItem } from "@/lib/types"
+import type { LinkItem, Category } from "@/lib/types"
 
-const languages = [
+const languages: { code: Locale; name: string }[] = [
     { code: "en", name: "English" },
     { code: "de", name: "Deutsch" },
 ]
@@ -33,13 +33,15 @@ interface HeaderClientProps {
     logoUrl: string | null;
     navigationLinks: LinkItem[];
     searchPlaceholder: string;
+    categories?: Category[];
 }
 
 export default function HeaderClient({
     brandName,
     logoUrl,
     navigationLinks,
-    searchPlaceholder
+    searchPlaceholder,
+    categories = []
 }: HeaderClientProps) {
     const [searchQuery, setSearchQuery] = useState("")
     const [showMegaMenu, setShowMegaMenu] = useState(false)
@@ -139,7 +141,7 @@ export default function HeaderClient({
                             </DropdownMenuContent>
                         </DropdownMenu>
 
-                        {/* Navigation Links from Strapi */}
+                        {/* Navigation Links from Strapi - REMOVED per user request
                         <div className="hidden lg:flex items-center space-x-1">
                             {navigationLinks.map((link) => (
                                 <Link
@@ -152,6 +154,7 @@ export default function HeaderClient({
                                 </Link>
                             ))}
                         </div>
+                        */}
 
                         {user ? (
                             <>
@@ -238,7 +241,7 @@ export default function HeaderClient({
                             <Menu className="h-4 w-4 mr-2" />
                             All Categories
                         </Button>
-                        <MegaMenu isVisible={showMegaMenu} />
+                        <MegaMenu isVisible={showMegaMenu} categories={categories} />
                     </div>
                 </div>
             </div>

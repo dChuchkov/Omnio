@@ -14,7 +14,7 @@ interface FooterClientProps {
     companyDescription: string | null;
     quickLinks: LinkItem[];
     legalLinks: LinkItem[];
-    socialLinks: LinkItem[];
+    socialLinks?: LinkItem[];
     newsletterTitle: string | null;
     copyrightText: string | null;
 }
@@ -24,7 +24,7 @@ export default function FooterClient({
     companyDescription,
     quickLinks,
     legalLinks,
-    socialLinks,
+    socialLinks = [],
     newsletterTitle,
     copyrightText
 }: FooterClientProps) {

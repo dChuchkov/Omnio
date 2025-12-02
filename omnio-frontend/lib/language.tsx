@@ -1,7 +1,7 @@
 "use client"
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 
-type Locale = 'en' | 'de';
+export type Locale = 'en' | 'de';
 
 interface LanguageContextType {
     locale: Locale;
@@ -24,7 +24,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     const setLocale = (newLocale: Locale) => {
         setLocaleState(newLocale);
         localStorage.setItem('locale', newLocale);
-        // Optional: Refresh page to fetch new content
+        document.cookie = `NEXT_LOCALE=${newLocale}; path=/; max-age=31536000`;
         window.location.reload();
     };
 

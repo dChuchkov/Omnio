@@ -7,7 +7,7 @@ import { useAuth } from "@/lib/auth"
 import { useCart } from "@/lib/cart"
 import { useWishlist } from "@/lib/wishlist"
 import ProductRating from "./ProductRating"
-import type { Product } from "@/lib/data"
+import type { Product } from "@/lib/types"
 
 interface ProductInfoProps {
   product: Product
@@ -15,7 +15,7 @@ interface ProductInfoProps {
 
 export default function ProductInfo({ product }: ProductInfoProps) {
   const [quantity, setQuantity] = useState(1)
-  const [selectedColor, setSelectedColor] = useState(product.variants?.[0]?.color || null)
+  const [selectedColor, setSelectedColor] = useState<string | null | undefined>(product.variants?.[0]?.color || null)
   const [showWishlistMessage, setShowWishlistMessage] = useState(false)
   const [showCartMessage, setShowCartMessage] = useState(false)
   const { user } = useAuth()
@@ -47,7 +47,7 @@ export default function ProductInfo({ product }: ProductInfoProps) {
 
   const handleAddToCart = () => {
     if (!user) {
-      window.location.href = `/signin?redirect=/product/${product.id}`
+      window.location.href = `/signin?redirect=/product/${product.slug}`
       return
     }
 
@@ -65,7 +65,7 @@ export default function ProductInfo({ product }: ProductInfoProps) {
         <h1 className="text-3xl font-bold mb-2">{product.name}</h1>
         <div className="flex items-center space-x-2">
           <span className="text-sm text-gray-500">Brand:</span>
-          <span className="text-sm font-medium text-gray-700">{product.brand}</span>
+          <span className="text-sm font-medium text-gray-700">{product.brand || 'Unknown'}</span>
         </div>
       </div>
 
@@ -80,7 +80,7 @@ export default function ProductInfo({ product }: ProductInfoProps) {
           </div>
         )}
         <div className="flex items-baseline space-x-2">
-          <span className="text-4xl font-bold text-red-600">${product.price.toFixed(2)}</span>
+          <span className="text-4xl font-bold text-red-600">${product.price?.toFixed(2) || 'N/A'}</span>
           {product.originalPrice && (
             <span className="text-sm text-green-600 font-medium">
               ({Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}% off)
@@ -91,7 +91,6 @@ export default function ProductInfo({ product }: ProductInfoProps) {
       </div>
 
       {/* Color Selector - Only shown if product has variants */}
-      {/* When Strapi is integrated, check if product.variants exists and has length > 0 */}
       {product.variants && product.variants.length > 0 && (
         <div className="space-y-3 pb-6 border-b">
           <div className="flex items-center space-x-2">
@@ -103,12 +102,11 @@ export default function ProductInfo({ product }: ProductInfoProps) {
               <button
                 key={variant.color}
                 onClick={() => setSelectedColor(variant.color)}
-                className={`relative w-12 h-12 rounded-full transition-all ${
-                  selectedColor === variant.color
-                    ? "ring-4 ring-blue-500 ring-offset-2 scale-110"
-                    : "ring-2 ring-gray-200 hover:ring-gray-300"
-                }`}
-                style={{ backgroundColor: variant.colorCode }}
+                className={`relative w-12 h-12 rounded-full transition-all ${selectedColor === variant.color
+                  ? "ring-4 ring-blue-500 ring-offset-2 scale-110"
+                  : "ring-2 ring-gray-200 hover:ring-gray-300"
+                  }`}
+                style={{ backgroundColor: variant.colorHex }}
                 title={variant.color}
               >
                 {selectedColor === variant.color && (
@@ -117,7 +115,7 @@ export default function ProductInfo({ product }: ProductInfoProps) {
                       className="h-6 w-6 drop-shadow-lg"
                       style={{
                         color:
-                          variant.colorCode === "#FFFFFF" || variant.colorCode.toLowerCase() === "#fff"
+                          variant.colorHex === "#FFFFFF" || variant.colorHex?.toLowerCase() === "#fff"
                             ? "#000000"
                             : "#FFFFFF",
                       }}
@@ -210,6 +208,8 @@ export default function ProductInfo({ product }: ProductInfoProps) {
       {/* Product Rating and Availability */}
       <ProductRating
         productId={product.id}
+        rating={product.rating || 0}
+        totalReviews={product.reviewsCount || 0}
         onReviewsClick={() => {
           const tabsElement = document.getElementById("product-tabs")
           if (tabsElement) {

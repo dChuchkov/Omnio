@@ -13,7 +13,6 @@ export default async function Footer() {
         companyDescription={footer.companyDescription}
         quickLinks={footer.quickLinks}
         legalLinks={footer.legalLinks}
-        socialLinks={footer.socialLinks}
         newsletterTitle={footer.newsletterTitle}
         copyrightText={footer.copyrightText}
       />
@@ -27,7 +26,6 @@ export default async function Footer() {
         companyDescription="Your ultimate shopping destination for everything you need."
         quickLinks={[]}
         legalLinks={[]}
-        socialLinks={[]}
         newsletterTitle="Subscribe to our Newsletter"
         copyrightText="© 2025 Omnio. All rights reserved."
       />

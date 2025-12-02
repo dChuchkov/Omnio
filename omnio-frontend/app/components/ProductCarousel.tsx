@@ -97,7 +97,7 @@ export default function ProductCarousel({ products, title, viewAllLink }: Produc
                 <CardContent className="flex-grow p-4 pt-0">
                   <p className="text-xs text-gray-500 mb-1">{product.category?.name || 'Uncategorized'}</p>
                   <div className="flex items-center space-x-2">
-                    <p className="text-lg font-bold text-red-600">${product.price.toFixed(2)}</p>
+                    <p className="text-lg font-bold text-red-600">${product.price?.toFixed(2) || 'N/A'}</p>
                     {product.originalPrice && (
                       <p className="text-sm text-gray-400 line-through">${product.originalPrice.toFixed(2)}</p>
                     )}

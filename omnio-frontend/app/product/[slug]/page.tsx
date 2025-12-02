@@ -1,17 +1,28 @@
 import Image from "next/image"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { getProductById } from "@/lib/data"
+import { getProductBySlug, getStrapiMedia } from "@/lib/api"
 import { ChevronRight } from "lucide-react"
 import ProductTabs from "@/app/components/ProductTabs"
 import ProductInfo from "@/app/components/ProductInfo"
 
-export default async function ProductPage({ params }: { params: { id: string } }) {
-  const product = await getProductById(Number.parseInt(params.id))
+import { cookies } from 'next/headers';
+
+export default async function ProductPage({ params }: { params: { slug: string } }) {
+  const cookieStore = cookies();
+  const locale = cookieStore.get('NEXT_LOCALE')?.value || 'en';
+
+  const productResponse = await getProductBySlug(params.slug, locale)
+  const product = productResponse.data[0]
 
   if (!product) {
     notFound()
   }
+
+  const category = product.category;
+  const categoryName = category?.name || 'Uncategorized'
+  const categorySlug = category?.slug || '#'
+  const parentCategory = category?.parent;
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -23,10 +34,20 @@ export default async function ProductPage({ params }: { params: { id: string } }
               Home
             </Link>
           </li>
+          {parentCategory && (
+            <>
+              <ChevronRight className="h-4 w-4" />
+              <li className="inline-flex items-center">
+                <Link href={`/category/${parentCategory.slug}`} className="text-gray-700 hover:text-blue-600">
+                  {parentCategory.name}
+                </Link>
+              </li>
+            </>
+          )}
           <ChevronRight className="h-4 w-4" />
           <li className="inline-flex items-center">
-            <Link href={`/category/${product.category}`} className="text-gray-700 hover:text-blue-600">
-              {product.category.charAt(0).toUpperCase() + product.category.slice(1)}
+            <Link href={`/category/${categorySlug}`} className="text-gray-700 hover:text-blue-600">
+              {categoryName}
             </Link>
           </li>
           <ChevronRight className="h-4 w-4" />
@@ -39,7 +60,13 @@ export default async function ProductPage({ params }: { params: { id: string } }
       <div className="grid gap-8 md:grid-cols-2">
         {/* Product Image */}
         <div className="relative aspect-square overflow-hidden rounded-lg border bg-white">
-          <Image src={product.image || "/placeholder.svg"} alt={product.name} fill className="object-cover" priority />
+          <Image
+            src={getStrapiMedia(product.image?.url) || "/placeholder.svg"}
+            alt={product.name}
+            fill
+            className="object-cover"
+            priority
+          />
         </div>
 
         {/* Product Info */}

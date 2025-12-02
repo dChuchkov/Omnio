@@ -77,8 +77,7 @@ export async function getProductBySlug(slug: string, locale = 'en'): Promise<Str
         populate: {
             image: true,
             images: true,
-            category: { populate: ['image', 'parent'] },
-            variants: true
+            category: { populate: ['image', 'parent'] }
         }
     });
 }
@@ -147,8 +146,7 @@ export async function getCategoryBySlug(slug: string, locale = 'en'): Promise<St
             parent: true,
             children: { populate: ['image'] },
             products: {
-                populate: ['image'],
-                pagination: { pageSize: 50 }
+                populate: ['image']
             }
         }
     });
@@ -185,8 +183,8 @@ export async function getGlobalSettings(locale = 'en'): Promise<StrapiSingleResp
         locale,
         populate: {
             header: { populate: ['logo', 'navigationLinks'] },
-            footer: { populate: ['quickLinks', 'legalLinks', 'socialLinks'] },
-            defaultSEO: true
+            footer: { populate: ['quickLinks', 'legalLinks'] },
+            defaultSeo: true
         }
     });
 }

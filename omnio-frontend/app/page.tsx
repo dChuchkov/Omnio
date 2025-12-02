@@ -3,11 +3,16 @@ import { getPageBySlug, getFeaturedProducts } from '@/lib/api';
 import DynamicZone from '@/components/DynamicZone';
 import ProductCarousel from './components/ProductCarousel';
 
+import { cookies } from 'next/headers';
+
 export default async function Home() {
+  const cookieStore = cookies();
+  const locale = cookieStore.get('NEXT_LOCALE')?.value || 'en';
+
   try {
     const [pageData, featuredProductsData] = await Promise.all([
-      getPageBySlug('home', 'en'),
-      getFeaturedProducts('en')
+      getPageBySlug('home', locale),
+      getFeaturedProducts(locale)
     ]);
 
     const page = pageData.data[0];
