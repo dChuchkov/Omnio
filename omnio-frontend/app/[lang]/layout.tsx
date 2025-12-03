@@ -1,7 +1,7 @@
 import type React from "react"
 import { Inter } from "next/font/google"
-import "./globals.css"
-import ClientLayout from "./components/ClientLayout"
+import "../globals.css"
+import ClientLayout from "../components/ClientLayout"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -13,15 +13,19 @@ export const metadata = {
 }
 
 import { getParentCategories } from "@/lib/api"
-import Header from "./components/Header"
-import Footer from "./components/Footer"
+import Header from "../components/Header"
+import Footer from "../components/Footer"
+
+
 
 export default async function RootLayout({
   children,
+  params: { lang },
 }: {
   children: React.ReactNode
+  params: { lang: string }
 }) {
-  const categoriesResponse = await getParentCategories('en');
+  const categoriesResponse = await getParentCategories(lang);
   const categories = categoriesResponse.data;
 
   return (

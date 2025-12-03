@@ -1,14 +1,8 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
-
-interface User {
-  id: number
-  email: string
-  firstName: string
-  lastName: string
-  name: string
-}
+import { login as apiLogin, register as apiRegister, fetchUser } from "./api"
+import type { User } from "./types"
 
 interface AuthContextType {
   user: User | null
@@ -25,89 +19,70 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    // Check if user is logged in on app start
-    const savedUser = localStorage.getItem("user")
-    if (savedUser) {
-      setUser(JSON.parse(savedUser))
+    // Check for token on app start
+    const token = localStorage.getItem("jwt")
+    if (token) {
+      fetchUser(token)
+        .then((userData) => {
+          setUser(userData)
+        })
+        .catch(() => {
+          // If token is invalid, clear it
+          localStorage.removeItem("jwt")
+          localStorage.removeItem("user")
+        })
+        .finally(() => {
+          setIsLoading(false)
+        })
+    } else {
+      setIsLoading(false)
     }
-    setIsLoading(false)
   }, [])
 
   const login = async (email: string, password: string): Promise<boolean> => {
     setIsLoading(true)
+    try {
+      const data = await apiLogin(email, password)
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+      localStorage.setItem("jwt", data.jwt)
+      localStorage.setItem("user", JSON.stringify(data.user))
 
-    // Check if user exists in localStorage (simulated database)
-    const users = JSON.parse(localStorage.getItem("users") || "[]")
-    const foundUser = users.find((u: any) => u.email === email && u.password === password)
-
-    if (foundUser) {
-      const userWithoutPassword = {
-        id: foundUser.id,
-        email: foundUser.email,
-        firstName: foundUser.firstName,
-        lastName: foundUser.lastName,
-        name: `${foundUser.firstName} ${foundUser.lastName}`,
-      }
-      setUser(userWithoutPassword)
-      localStorage.setItem("user", JSON.stringify(userWithoutPassword))
-      setIsLoading(false)
+      setUser(data.user)
       return true
+    } catch (error) {
+      console.error("Login failed:", error)
+      return false
+    } finally {
+      setIsLoading(false)
     }
-
-    setIsLoading(false)
-    return false
   }
 
   const register = async (firstName: string, lastName: string, email: string, password: string): Promise<boolean> => {
     setIsLoading(true)
+    try {
+      const username = `${firstName} ${lastName}`.trim()
+      const data = await apiRegister(username, email, password)
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+      localStorage.setItem("jwt", data.jwt)
+      localStorage.setItem("user", JSON.stringify(data.user))
 
-    // Check if user already exists
-    const users = JSON.parse(localStorage.getItem("users") || "[]")
-    const existingUser = users.find((u: any) => u.email === email)
-
-    if (existingUser) {
-      setIsLoading(false)
+      setUser(data.user)
+      return true
+    } catch (error) {
+      console.error("Registration failed:", error)
       return false
+    } finally {
+      setIsLoading(false)
     }
-
-    // Create new user
-    const newUser = {
-      id: Date.now(),
-      firstName,
-      lastName,
-      email,
-      password,
-    }
-
-    users.push(newUser)
-    localStorage.setItem("users", JSON.stringify(users))
-
-    // Auto login after registration
-    const userWithoutPassword = {
-      id: newUser.id,
-      email: newUser.email,
-      firstName: newUser.firstName,
-      lastName: newUser.lastName,
-      name: `${newUser.firstName} ${newUser.lastName}`,
-    }
-    setUser(userWithoutPassword)
-    localStorage.setItem("user", JSON.stringify(userWithoutPassword))
-
-    setIsLoading(false)
-    return true
   }
 
   const logout = () => {
     setUser(null)
+    localStorage.removeItem("jwt")
     localStorage.removeItem("user")
-    localStorage.removeItem("cart")
-    localStorage.removeItem("wishlist")
+    // Optional: Clear cart/wishlist if we want to reset state
+    // localStorage.removeItem("cart")
+    // localStorage.removeItem("wishlist")
   }
 
   return <AuthContext.Provider value={{ user, login, register, logout, isLoading }}>{children}</AuthContext.Provider>

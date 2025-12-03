@@ -2,7 +2,17 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Button } from "@/components/ui/button"
 
 // Mock data for products
-const products = {
+interface Product {
+  id: number
+  name: string
+  price: number
+}
+
+interface ProductCategories {
+  [key: string]: Product[] | { [key: string]: Product[] }
+}
+
+const products: ProductCategories = {
   food: [
     { id: 1, name: "Premium Coffee Beans", price: 15.99 },
     { id: 2, name: "Organic Avocados", price: 5.99 },
@@ -54,19 +64,20 @@ const products = {
 
 export default function CategoryPage({ params }: { params: { slug: string[] } }) {
   const [mainCategory, subCategory] = params.slug
-  let categoryProducts: any[] = []
+  let categoryProducts: Product[] = []
   let categoryName = ""
 
   if (mainCategory === "hardware-and-home-appliances") {
+    const hardwareProducts = products[mainCategory] as { [key: string]: Product[] }
     if (subCategory) {
-      categoryProducts = products[mainCategory][subCategory] || []
+      categoryProducts = hardwareProducts[subCategory] || []
       categoryName = subCategory.split("-").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ")
     } else {
-      categoryProducts = products[mainCategory].all
+      categoryProducts = hardwareProducts.all
       categoryName = "Hardware and Home Appliances"
     }
   } else {
-    categoryProducts = products[mainCategory as keyof typeof products] || []
+    categoryProducts = (products[mainCategory] as Product[]) || []
     categoryName = mainCategory.split("-").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ")
   }
 

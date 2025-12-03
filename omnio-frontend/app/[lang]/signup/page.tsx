@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import Link from "next/link"
+import Link from "@/components/Link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,17 +12,21 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Eye, EyeOff } from "lucide-react"
 import { useAuth } from "@/lib/auth"
 
-export default function SignInPage() {
+export default function SignUpPage() {
   const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
     email: "",
     password: "",
-    rememberMe: false,
+    confirmPassword: "",
+    agreeToTerms: false,
   })
   const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [error, setError] = useState("")
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { login, isLoading, user } = useAuth()
+  const { register, isLoading, user } = useAuth()
 
   const redirectPath = searchParams.get("redirect") || "/"
 
@@ -39,23 +43,33 @@ export default function SignInPage() {
   }
 
   const handleCheckboxChange = (checked: boolean) => {
-    setFormData((prev) => ({ ...prev, rememberMe: checked }))
+    setFormData((prev) => ({ ...prev, agreeToTerms: checked }))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
 
-    const success = await login(formData.email, formData.password)
+    if (formData.password !== formData.confirmPassword) {
+      setError("Passwords don't match!")
+      return
+    }
+
+    if (!formData.agreeToTerms) {
+      setError("Please agree to the terms and conditions")
+      return
+    }
+
+    const success = await register(formData.firstName, formData.lastName, formData.email, formData.password)
     if (success) {
       router.push(redirectPath)
     } else {
-      setError("Invalid email or password. Please try again.")
+      setError("An account with this email already exists.")
     }
   }
 
   const handleSocialLogin = (provider: string) => {
-    console.log(`Sign in with ${provider}`)
+    console.log(`Sign up with ${provider}`)
     // Implement social login logic here
   }
 
@@ -64,19 +78,19 @@ export default function SignInPage() {
       <div className="max-w-md w-full space-y-8">
         {/* Header */}
         <div className="text-center">
-          <h2 className="text-3xl font-bold text-gray-900">Sign In</h2>
+          <h2 className="text-3xl font-bold text-gray-900">Create Account</h2>
           <p className="mt-2 text-gray-600">
-            Don't have an Omnio account?{" "}
+            Already have an account?{" "}
             <Link
-              href={`/signup${redirectPath !== "/" ? `?redirect=${redirectPath}` : ""}`}
-              className="text-orange-600 hover:text-orange-500 font-medium"
+              href={`/signin${redirectPath !== "/" ? `?redirect=${redirectPath}` : ""}`}
+              className="text-blue-600 hover:text-blue-500 font-medium"
             >
-              Register here.
+              Sign in here.
             </Link>
           </p>
         </div>
 
-        {/* Sign In Form */}
+        {/* Sign Up Form */}
         <Card>
           <CardContent className="p-6">
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -85,6 +99,37 @@ export default function SignInPage() {
                   <p className="text-sm text-red-600">{error}</p>
                 </div>
               )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
+                    First Name *
+                  </label>
+                  <Input
+                    id="firstName"
+                    name="firstName"
+                    type="text"
+                    value={formData.firstName}
+                    onChange={handleInputChange}
+                    required
+                    placeholder="John"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">
+                    Last Name *
+                  </label>
+                  <Input
+                    id="lastName"
+                    name="lastName"
+                    type="text"
+                    value={formData.lastName}
+                    onChange={handleInputChange}
+                    required
+                    placeholder="Doe"
+                  />
+                </div>
+              </div>
 
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
@@ -98,7 +143,6 @@ export default function SignInPage() {
                   onChange={handleInputChange}
                   required
                   placeholder="your.email@example.com"
-                  className="w-full"
                 />
               </div>
 
@@ -114,8 +158,8 @@ export default function SignInPage() {
                     value={formData.password}
                     onChange={handleInputChange}
                     required
-                    placeholder="Enter your password"
-                    className="w-full pr-10"
+                    placeholder="Create a strong password"
+                    className="pr-10"
                   />
                   <button
                     type="button"
@@ -131,20 +175,56 @@ export default function SignInPage() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <Checkbox id="rememberMe" checked={formData.rememberMe} onCheckedChange={handleCheckboxChange} />
-                  <label htmlFor="rememberMe" className="text-sm text-gray-600">
-                    Remember me
-                  </label>
+              <div>
+                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
+                  Confirm Password *
+                </label>
+                <div className="relative">
+                  <Input
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={formData.confirmPassword}
+                    onChange={handleInputChange}
+                    required
+                    placeholder="Confirm your password"
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff className="h-4 w-4 text-gray-400" />
+                    ) : (
+                      <Eye className="h-4 w-4 text-gray-400" />
+                    )}
+                  </button>
                 </div>
-                <Link href="/forgot-password" className="text-sm text-blue-600 hover:text-blue-500">
-                  Forgot password?
-                </Link>
               </div>
 
-              <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={isLoading}>
-                {isLoading ? "Signing In..." : "Sign In"}
+              <div className="flex items-start space-x-2">
+                <Checkbox
+                  id="agreeToTerms"
+                  checked={formData.agreeToTerms}
+                  onCheckedChange={handleCheckboxChange}
+                  className="mt-1"
+                />
+                <label htmlFor="agreeToTerms" className="text-sm text-gray-600">
+                  I agree to the{" "}
+                  <Link href="/terms-of-service" className="text-blue-600 hover:text-blue-500">
+                    Terms of Service
+                  </Link>{" "}
+                  and{" "}
+                  <Link href="/privacy-policy" className="text-blue-600 hover:text-blue-500">
+                    Privacy Policy
+                  </Link>
+                </label>
+              </div>
+
+              <Button type="submit" className="w-full bg-orange-600 hover:bg-orange-700" disabled={isLoading}>
+                {isLoading ? "Creating Account..." : "Create Account"}
               </Button>
             </form>
 
@@ -186,7 +266,7 @@ export default function SignInPage() {
                     d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                   />
                 </svg>
-                Sign in with Google
+                Sign up with Google
               </Button>
 
               <Button
@@ -198,7 +278,7 @@ export default function SignInPage() {
                 <svg className="w-5 h-5 mr-2" fill="#1877F2" viewBox="0 0 24 24">
                   <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
                 </svg>
-                Sign in with Facebook
+                Sign up with Facebook
               </Button>
             </div>
           </CardContent>

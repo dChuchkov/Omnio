@@ -2,7 +2,7 @@
 
 import { useEffect } from "react"
 import Image from "next/image"
-import Link from "next/link"
+import Link from "@/components/Link"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -82,7 +82,7 @@ export default function CartPage() {
                   <TableCell>
                     <div className="relative h-20 w-20 overflow-hidden rounded-md border">
                       <Image
-                        src={item.product.image || "/placeholder.svg"}
+                        src={item.product.image?.url || "/placeholder.svg"}
                         alt={item.product.name}
                         fill
                         className="object-cover"

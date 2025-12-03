@@ -186,6 +186,8 @@ export interface User {
     blocked: boolean;
     createdAt: string;
     updatedAt: string;
+    firstName?: string;
+    lastName?: string;
 }
 
 export interface Cart {

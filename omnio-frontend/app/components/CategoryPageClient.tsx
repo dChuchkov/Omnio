@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react"
 import Image from "next/image"
-import Link from "next/link"
+import Link from "@/components/Link"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"

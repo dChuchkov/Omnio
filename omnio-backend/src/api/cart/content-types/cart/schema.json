@@ -7,19 +7,14 @@
     "displayName": "Cart"
   },
   "options": {
-    "draftAndPublish": true
+    "draftAndPublish": false
   },
-  "pluginOptions": {
-    "i18n": {
-      "localized": true
-    }
-  },
+  "pluginOptions": {},
   "attributes": {
     "users_permissions_user": {
       "type": "relation",
       "relation": "oneToOne",
-      "target": "plugin::users-permissions.user",
-      "inversedBy": "cart"
+      "target": "plugin::users-permissions.user"
     },
     "cart_items": {
       "type": "relation",

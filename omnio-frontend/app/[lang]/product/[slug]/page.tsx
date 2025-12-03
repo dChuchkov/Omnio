@@ -1,5 +1,5 @@
 import Image from "next/image"
-import Link from "next/link"
+import Link from "@/components/Link"
 import { notFound } from "next/navigation"
 import { getProductBySlug, getStrapiMedia } from "@/lib/api"
 import { ChevronRight } from "lucide-react"

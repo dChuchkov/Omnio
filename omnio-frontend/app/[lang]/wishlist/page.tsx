@@ -2,7 +2,7 @@
 
 import { useEffect } from "react"
 import Image from "next/image"
-import Link from "next/link"
+import Link from "@/components/Link"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -73,7 +73,7 @@ export default function WishlistPage() {
           <Card key={product.id} className="flex flex-col h-full">
             <CardHeader className="flex-shrink-0">
               <div className="relative aspect-square overflow-hidden rounded-lg">
-                <Image src={product.image || "/placeholder.svg"} alt={product.name} fill className="object-cover" />
+                <Image src={product.image?.url || "/placeholder.svg"} alt={product.name} fill className="object-cover" />
                 <Button
                   variant="ghost"
                   size="icon"

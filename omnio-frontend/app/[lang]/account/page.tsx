@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import Link from "next/link"
+import Link from "@/components/Link"
 import { useAuth } from "@/lib/auth"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -52,11 +52,10 @@ export default function AccountPage() {
                       <button
                         key={item.id}
                         onClick={() => setActiveTab(item.id)}
-                        className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors ${
-                          activeTab === item.id
+                        className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors ${activeTab === item.id
                             ? "bg-blue-50 text-blue-700 font-medium"
                             : "text-gray-700 hover:bg-gray-50"
-                        }`}
+                          }`}
                       >
                         <div className="flex items-center">
                           <Icon className="h-5 w-5 mr-3" />
