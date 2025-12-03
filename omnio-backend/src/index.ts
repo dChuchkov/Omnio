@@ -58,8 +58,8 @@ const CONFIG = {
   TARGET_LOCALE: 'de',
   MEDIA_MAP_FILE: path.resolve(process.cwd(), 'media_map.json'),
   BATCH_SIZE: 50,
-  RETRY_ATTEMPTS: 3,
-  RETRY_DELAY_MS: 500,
+  RETRY_ATTEMPTS: 1,
+  RETRY_DELAY_MS: 300,
   PUBLISH_AFTER_CREATE: true,
   CONTENT_TYPES: {
     page: 'api::page.page',
@@ -108,80 +108,9 @@ function findMediaByName(nameOrFilename?: string) {
   return MEDIA_MAP[key] || null;
 }
 
-// i18n helpers
-async function ensureBidirectionalLinkAndSync(strapi: Core.Strapi, UID: string, createdEntry: any, createdLocale: string) {
-  try {
-    const createdAttrs = createdEntry?.attributes ?? createdEntry;
-    const locs = createdAttrs?.localizations ?? createdEntry?.localizations ?? [];
-    const locIds = Array.isArray(locs) ? locs.map((l: any) => (typeof l === 'object' ? (l.id || l.documentId) : l)) : [];
+// i18n helpers - REMOVED ensureBidirectionalLinkAndSync
+// Document Service API handles linking automatically when documentId is passed as parameter
 
-    let enEntry: any = null;
-    if (createdLocale === CONFIG.TARGET_LOCALE) {
-      if (locIds.length > 0) {
-        enEntry = await strapi.entityService.findOne(UID as any, locIds[0], { populate: ['localizations'] });
-      } else if (createdAttrs.documentId) {
-        const found = await strapi.entityService.findMany(UID as any, {
-          filters: { documentId: createdAttrs.documentId, locale: CONFIG.SOURCE_LOCALE },
-          limit: 1,
-          populate: ['localizations'],
-        });
-        enEntry = found?.[0] ?? null;
-      }
-    }
-
-    if (!enEntry) return;
-
-    const canonicalDocumentId = enEntry.documentId || enEntry.id;
-    if (!createdAttrs.documentId || String(createdAttrs.documentId) !== String(canonicalDocumentId)) {
-      await withRetry(() => strapi.entityService.update(UID as any, createdEntry.id, {
-        data: { documentId: canonicalDocumentId },
-        locale: createdLocale,
-      }));
-    }
-
-    const enLocalizations = (enEntry.localizations || enEntry.attributes?.localizations || []).map((l: any) => (typeof l === 'object' ? l.id : l));
-    const createdLocalizations = (createdAttrs.localizations || []).map((l: any) => (typeof l === 'object' ? l.id : l));
-
-    const enSet = new Set(enLocalizations);
-    const createdSet = new Set(createdLocalizations);
-
-    enSet.add(createdEntry.id);
-    createdSet.add(enEntry.id);
-
-    await withRetry(() => strapi.entityService.update(UID as any, enEntry.id, {
-      data: { localizations: Array.from(enSet) as any },
-      locale: enEntry.locale || CONFIG.SOURCE_LOCALE,
-    }));
-
-    await withRetry(() => strapi.entityService.update(UID as any, createdEntry.id, {
-      data: { localizations: Array.from(createdSet) as any },
-      locale: createdLocale,
-    }));
-
-    try {
-      const model = strapi.getModel(UID as any);
-      const attrs = model?.attributes ?? {};
-      const nonLocalizedData: any = {};
-      for (const [attrName, attrDef] of Object.entries(attrs)) {
-        const isLocalized = (attrDef as any)?.pluginOptions?.i18n?.localized === true;
-        const isRelation = !!(attrDef as any)?.type && ['relation', 'component', 'dynamiczone'].includes(String((attrDef as any).type));
-        if (isLocalized || isRelation) continue;
-        const enVal = enEntry[attrName] ?? enEntry.attributes?.[attrName];
-        if (typeof enVal !== 'undefined') nonLocalizedData[attrName] = enVal;
-      }
-      if (Object.keys(nonLocalizedData).length > 0) {
-        await withRetry(() => strapi.entityService.update(UID as any, createdEntry.id, {
-          data: nonLocalizedData,
-          locale: createdLocale,
-        }));
-      }
-    } catch (e: any) {
-      console.warn('[i18n] Non-localized copy failed:', e.message);
-    }
-  } catch (e: any) {
-    console.warn('[i18n] ensureBidirectionalLinkAndSync error:', e.message);
-  }
-}
 
 // slug helpers
 async function isSlugAvailable(strapi: Core.Strapi, uid: string, slug: string, locale: string, incomingDocumentId?: string | number) {
@@ -199,59 +128,58 @@ async function isSlugAvailable(strapi: Core.Strapi, uid: string, slug: string, l
   return false;
 }
 
-// localized create helper
+// localized create helper - FIXED to use Document Service API
 async function createLocalizedEntry(strapi: Core.Strapi, UID: string, params: any) {
   const incoming = { ...(params.data || {}) };
   const localeToUse = incoming.locale || params.locale || CONFIG.TARGET_LOCALE;
-  const slug = incoming.slug;
+  const docIdToLink = incoming.documentId;
 
-  const existingByDoc = incoming.documentId ? await strapi.entityService.findMany(UID as any, {
-    filters: { documentId: String(incoming.documentId), locale: localeToUse },
-    limit: 1,
-  }) : [];
-  if (existingByDoc && existingByDoc.length) return existingByDoc[0];
-
-  if (slug) {
-    const existingBySlug = await strapi.entityService.findMany(UID as any, {
-      filters: { slug, locale: localeToUse },
-      limit: 1,
-    });
-    if (existingBySlug && existingBySlug.length) {
-      const existing = existingBySlug[0];
-      if (incoming.documentId && String(existing.documentId || existing.id) !== String(incoming.documentId)) {
-        try {
-          await withRetry(() => strapi.entityService.update(UID as any, existing.id, {
-            data: { documentId: incoming.documentId },
-            locale: localeToUse,
-          }));
-        } catch (err: any) {
-          console.warn(`Failed to set documentId on existing entry ${existing.id}: ${err.message}`);
-        }
+  // Check if this localization already exists
+  if (docIdToLink) {
+    try {
+      const existing = await strapi.entityService.findMany(UID as any, {
+        filters: { documentId: String(docIdToLink), locale: localeToUse },
+        limit: 1,
+      });
+      if (existing && existing.length > 0) {
+        strapi.log.info(`[createLocalizedEntry] Localization already exists for ${UID} (${localeToUse})`);
+        return existing[0];
       }
-      await ensureBidirectionalLinkAndSync(strapi, UID, { id: existing.id, attributes: existing }, localeToUse);
-      return existing;
+    } catch (e: any) {
+      strapi.log.warn(`[createLocalizedEntry] Error checking existing: ${e.message}`);
     }
   }
 
+  // Prepare clean data payload (remove system fields)
+  const cleanData = { ...incoming };
+  delete cleanData.documentId;
+  delete cleanData.localizations;
+  delete cleanData.locale;
+  delete cleanData.id;
+  delete cleanData.createdAt;
+  delete cleanData.updatedAt;
+
+  // Use Document Service API to create localization
+  // This is the CRITICAL fix - documentId must be a parameter, not in data
   const createOptions: any = {
-    data: incoming,
-    populate: params.populate || { localizations: true },
+    data: cleanData,
     locale: localeToUse,
   };
 
-  const created = await withRetry(() => strapi.entityService.create(UID as any, createOptions as any));
-
-  const i18nService = strapi.plugin?.('i18n')?.service?.('localizations');
-  if (i18nService && typeof i18nService.syncNonLocalizedAttributes === 'function') {
-    try {
-      i18nService.syncNonLocalizedAttributes(created, { model: strapi.getModel(UID as any) });
-    } catch (err) {
-      // ignore
-    }
+  // If linking to existing document, pass documentId as parameter
+  if (docIdToLink) {
+    createOptions.documentId = docIdToLink;
   }
 
-  await ensureBidirectionalLinkAndSync(strapi, UID, created, localeToUse);
-  return created;
+  try {
+    // Use strapi.documents() instead of entityService for proper linking
+    const created = await withRetry(() => strapi.documents(UID as any).create(createOptions));
+    strapi.log.info(`[createLocalizedEntry] Created ${UID} localization (${localeToUse})`);
+    return created;
+  } catch (e: any) {
+    strapi.log.error(`[createLocalizedEntry] Failed to create ${UID} (${localeToUse}): ${e.message}`);
+    throw e;
+  }
 }
 
 // Inlined content data
@@ -554,6 +482,18 @@ export default {
               const ok = await isSlugAvailable(strapi, CONFIG.CONTENT_TYPES.category, enPayload.slug, CONFIG.SOURCE_LOCALE, enPayload.documentId);
               if (!ok) throw new Error(`Slug conflict for category "${enPayload.slug}"`);
               enParent = await withRetry(() => strapi.entityService.create(CONFIG.CONTENT_TYPES.category as any, { data: enPayload, populate: ['localizations'] }));
+
+              // FIX: Properly publish English category using entityService.update
+              if (CONFIG.PUBLISH_AFTER_CREATE) {
+                try {
+                  await strapi.entityService.update(CONFIG.CONTENT_TYPES.category as any, enParent.id, {
+                    data: { publishedAt: new Date().toISOString() },
+                    locale: CONFIG.SOURCE_LOCALE
+                  });
+                } catch (e: any) {
+                  strapi.log.warn(`Failed to publish category: ${e.message}`);
+                }
+              }
             }
             categoryMap.set(catData.en.slug, enParent.id ?? enParent.attributes?.id);
             stats.categories++;
@@ -566,11 +506,21 @@ export default {
 
           if (enParent) {
             try {
-              const dePayload = { name: catData.de.name, slug: enParent.slug || catData.en.slug, description: catData.de.description, locale: CONFIG.TARGET_LOCALE, localizations: [{ id: enParent.id }], documentId: enParent.documentId || enParent.id };
+              // FIX: Clean payload for Document Service API
+              const dePayload = {
+                name: catData.de.name,
+                description: catData.de.description,
+                image: enParent.image,
+                // NO locale, localizations, documentId, or slug in data!
+              };
               if (CONFIG.DRY_RUN) {
-                strapi.log.info(`[DRY RUN] create DE category: ${dePayload.slug}`);
+                strapi.log.info(`[DRY RUN] create DE category: ${catData.en.slug}`);
               } else {
-                await createLocalizedEntry(strapi, CONFIG.CONTENT_TYPES.category, { data: dePayload, populate: { localizations: true } });
+                await createLocalizedEntry(strapi, CONFIG.CONTENT_TYPES.category, {
+                  data: dePayload,
+                  locale: CONFIG.TARGET_LOCALE,
+                  documentId: enParent.documentId || enParent.id
+                });
               }
               strapi.log.info(`  Created DE category for ${catData.en.slug}`);
             } catch (e: any) {
@@ -608,17 +558,69 @@ export default {
               const ok = await isSlugAvailable(strapi, CONFIG.CONTENT_TYPES.category, enSubPayload.slug, CONFIG.SOURCE_LOCALE, enSubPayload.documentId);
               if (!ok) throw new Error(`Slug conflict for subcategory "${enSubPayload.slug}"`);
               createdEnSub = await withRetry(() => strapi.entityService.create(CONFIG.CONTENT_TYPES.category as any, { data: enSubPayload, populate: ['localizations'] }));
+
+              // FIX: Properly publish English subcategory using entityService.update
+              if (CONFIG.PUBLISH_AFTER_CREATE) {
+                try {
+                  await strapi.entityService.update(CONFIG.CONTENT_TYPES.category as any, createdEnSub.id, {
+                    data: { publishedAt: new Date().toISOString() },
+                    locale: CONFIG.SOURCE_LOCALE
+                  });
+                } catch (e: any) {
+                  strapi.log.warn(`Failed to publish subcategory: ${e.message}`);
+                }
+              }
+
+              // FIX: Update parent category bidirectionally
+              if (parentId) {
+                try {
+                  const parent = await strapi.entityService.findOne(CONFIG.CONTENT_TYPES.category as any, parentId, { populate: ['children'] });
+                  if (parent) {
+                    const currentChildren = (parent.children || []).map((c: any) => c.id || c);
+                    if (!currentChildren.includes(createdEnSub.id)) {
+                      await strapi.entityService.update(CONFIG.CONTENT_TYPES.category as any, parentId, {
+                        data: { children: [...currentChildren, createdEnSub.id] as any },
+                        locale: CONFIG.SOURCE_LOCALE
+                      });
+                      // Republish parent to reflect changes
+                      if (CONFIG.PUBLISH_AFTER_CREATE) {
+                        try {
+                          await strapi.entityService.update(CONFIG.CONTENT_TYPES.category as any, parentId, {
+                            data: { publishedAt: new Date().toISOString() },
+                            locale: CONFIG.SOURCE_LOCALE
+                          });
+                        } catch (e: any) {
+                          strapi.log.warn(`Failed to republish parent: ${e.message}`);
+                        }
+                      }
+                    }
+                  }
+                } catch (e: any) {
+                  strapi.log.warn(`Failed to update parent category: ${e.message}`);
+                }
+              }
             }
             categoryMap.set(sub.en.slug, createdEnSub.id ?? createdEnSub.attributes?.id);
             stats.subcategories++;
             strapi.log.info(`  Created EN subcategory: ${sub.en.name}`);
 
             try {
-              const deSubPayload = { name: sub.de.name, slug: createdEnSub.slug || sub.en.slug, description: sub.de.description, locale: CONFIG.TARGET_LOCALE, localizations: [{ id: createdEnSub.id }], documentId: createdEnSub.documentId || createdEnSub.id };
+              // FIX: Clean payload for Document Service API
+              const deSubPayload = {
+                name: sub.de.name,
+                description: sub.de.description,
+                parent: createdEnSub.parent,
+                image: createdEnSub.image,
+                // NO locale, localizations, documentId, or slug in data!
+              };
               if (CONFIG.DRY_RUN) {
-                strapi.log.info(`[DRY RUN] create DE subcategory: ${deSubPayload.slug}`);
+                strapi.log.info(`[DRY RUN] create DE subcategory: ${sub.en.slug}`);
               } else {
-                await createLocalizedEntry(strapi, CONFIG.CONTENT_TYPES.category, { data: deSubPayload, populate: { localizations: true } });
+                await createLocalizedEntry(strapi, CONFIG.CONTENT_TYPES.category, {
+                  data: deSubPayload,
+                  locale: CONFIG.TARGET_LOCALE,
+                  documentId: createdEnSub.documentId || createdEnSub.id
+                });
               }
               strapi.log.info(`    Created DE subcategory for ${sub.en.slug}`);
             } catch (e: any) {
@@ -674,14 +676,23 @@ export default {
 
         for (let i = 0; i < sub.productCount; i++) {
           try {
-            const brand = template.brands[Math.floor(Math.random() * template.brands.length)];
+            // FIX: Deterministic brand selection based on index (not random!)
+            const brandIndex = i % template.brands.length;
+            const brand = template.brands[brandIndex];
             const productNumber = i + 1;
             const enName = `${brand} ${template.en.name} ${productNumber}`;
             const deName = `${brand} ${template.de.name} ${productNumber}`;
-            const slug = enName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+            // FIX: Consistent slug generation to prevent duplicates
+            const slug = `${brand.toLowerCase()}-${template.en.name.toLowerCase()}-${productNumber}`
+              .replace(/[^a-z0-9]+/g, '-')
+              .replace(/^-|-$/g, '');
 
             const existing = await strapi.entityService.findMany(CONFIG.CONTENT_TYPES.product as any, { filters: { slug, locale: CONFIG.SOURCE_LOCALE }, limit: 1 });
-            if (existing && existing.length > 0) continue;
+            if (existing && existing.length > 0) {
+              strapi.log.info(`Skipping existing product: ${slug}`);
+              continue;
+            }
 
             const mediaMain = findMediaByName(`product-${slug}`) || findMediaByName(slug) || null;
             const mainImageId = mediaMain ? mediaMain.id : null;
@@ -718,25 +729,50 @@ export default {
               const ok = await isSlugAvailable(strapi, CONFIG.CONTENT_TYPES.product, productPayload.slug, CONFIG.SOURCE_LOCALE, productPayload.documentId);
               if (!ok) throw new Error(`Slug conflict for product "${productPayload.slug}"`);
               createdEnProduct = await withRetry(() => strapi.entityService.create(CONFIG.CONTENT_TYPES.product as any, { data: productPayload, populate: ['localizations'] }));
+
+              // FIX: Properly publish English product using entityService.update
+              if (CONFIG.PUBLISH_AFTER_CREATE) {
+                try {
+                  await strapi.entityService.update(CONFIG.CONTENT_TYPES.product as any, createdEnProduct.id, {
+                    data: { publishedAt: new Date().toISOString() },
+                    locale: CONFIG.SOURCE_LOCALE
+                  });
+                } catch (e: any) {
+                  strapi.log.warn(`Failed to publish product: ${e.message}`);
+                }
+              }
             }
             stats.products++;
             strapi.log.info(`Created EN product: ${enName}`);
 
             try {
+              // FIX: Clean payload for Document Service API
               const dePayload: any = {
                 name: deName,
-                slug: createdEnProduct.slug || slug,
                 description: createBlocksContent(template.de.description),
                 features: createFeaturesBlocks(template.de.features || []),
                 specifications: createSpecificationsBlocks(template.de.specifications || {}),
-                locale: CONFIG.TARGET_LOCALE,
-                localizations: [{ id: createdEnProduct.id }],
-                documentId: createdEnProduct.documentId || createdEnProduct.id,
+                brand,
+                // FIX: Copy price fields directly (not from createdEnProduct which may have nested structure)
+                price: productPayload.price,
+                originalPrice: productPayload.originalPrice,
+                rating: productPayload.rating,
+                reviewsCount: productPayload.reviewsCount,
+                inStock: productPayload.inStock,
+                isFeatured: productPayload.isFeatured,
+                image: productPayload.image,
+                images: productPayload.images,
+                category: productPayload.category,
+                // NO locale, localizations, documentId, or slug in data!
               };
               if (CONFIG.DRY_RUN) {
-                strapi.log.info(`[DRY RUN] create DE product: ${dePayload.slug}`);
+                strapi.log.info(`[DRY RUN] create DE product: ${slug}`);
               } else {
-                await createLocalizedEntry(strapi, CONFIG.CONTENT_TYPES.product, { data: dePayload, populate: { localizations: true } });
+                await createLocalizedEntry(strapi, CONFIG.CONTENT_TYPES.product, {
+                  data: dePayload,
+                  locale: CONFIG.TARGET_LOCALE,
+                  documentId: createdEnProduct.documentId || createdEnProduct.id
+                });
               }
               strapi.log.info(`  Created DE product for ${enName}`);
             } catch (e: any) {
@@ -795,16 +831,39 @@ export default {
           const ok = await isSlugAvailable(strapi, CONFIG.CONTENT_TYPES.page, enPayload.slug, CONFIG.SOURCE_LOCALE, enPayload.documentId);
           if (!ok) throw new Error(`Slug conflict for page "${enPayload.slug}"`);
           createdEnPage = await withRetry(() => strapi.entityService.create(CONFIG.CONTENT_TYPES.page as any, { data: enPayload, populate: ['localizations'] }));
+
+          // FIX: Properly publish English page using entityService.update
+          if (CONFIG.PUBLISH_AFTER_CREATE) {
+            try {
+              await strapi.entityService.update(CONFIG.CONTENT_TYPES.page as any, createdEnPage.id, {
+                data: { publishedAt: new Date().toISOString() },
+                locale: CONFIG.SOURCE_LOCALE
+              });
+            } catch (e: any) {
+              strapi.log.warn(`Failed to publish page: ${e.message}`);
+            }
+          }
         }
         stats.pages++;
         strapi.log.info(`Created EN page: ${pageData.en.title}`);
 
         try {
-          const dePayload: any = { title: pageData.de.title, slug: createdEnPage.slug || pageData.en.slug, locale: CONFIG.TARGET_LOCALE, sections: getPageSections(pageData.template), localizations: [{ id: createdEnPage.id }], documentId: createdEnPage.documentId || createdEnPage.id };
+          // FIX: Clean payload for Document Service API
+          const dePayload: any = {
+            title: pageData.de.title,
+            sections: getPageSections(pageData.template),
+            seo: { metaTitle: pageData.de.metaTitle, metaDescription: pageData.de.metaDescription },
+            isHomepage: pageData.en.slug === 'home' ? true : false,
+            // NO locale, localizations, documentId, or slug in data!
+          };
           if (CONFIG.DRY_RUN) {
-            strapi.log.info(`[DRY RUN] create DE page: ${dePayload.slug}`);
+            strapi.log.info(`[DRY RUN] create DE page: ${pageData.en.slug}`);
           } else {
-            await createLocalizedEntry(strapi, CONFIG.CONTENT_TYPES.page, { data: dePayload, populate: { localizations: true } });
+            await createLocalizedEntry(strapi, CONFIG.CONTENT_TYPES.page, {
+              data: dePayload,
+              locale: CONFIG.TARGET_LOCALE,
+              documentId: createdEnPage.documentId || createdEnPage.id
+            });
           }
           strapi.log.info(`  Created DE page for ${pageData.en.title}`);
         } catch (e: any) {

@@ -42,7 +42,13 @@ export default {
 
     async beforeUpdate(event) {
         const { data, where, locale } = event.params;
+
+        // Skip slug check if this is just a publish operation (not changing slug)
         if (!data?.slug) return;
+
+        // Skip if this is a publish/unpublish operation (publishedAt is being changed)
+        const isPublishOperation = data.publishedAt !== undefined && Object.keys(data).length <= 3;
+        if (isPublishOperation) return;
 
         const slug = data.slug;
         const targetLocale = locale || data?.locale || 'en';
