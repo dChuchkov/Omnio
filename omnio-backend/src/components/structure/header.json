@@ -1,0 +1,34 @@
+{
+  "collectionName": "components_structure_headers",
+  "info": {
+    "displayName": "Header",
+    "icon": "layout"
+  },
+  "options": {},
+  "attributes": {
+    "logo": {
+      "type": "media",
+      "multiple": false,
+      "required": false,
+      "allowedTypes": [
+        "images",
+        "files"
+      ]
+    },
+    "brandName": {
+      "type": "string"
+    },
+    "navigationLinks": {
+      "type": "component",
+      "component": "shared.link-item",
+      "repeatable": true
+    },
+    "searchPlaceholder": {
+      "type": "string"
+    },
+    "languageOptions": {
+      "type": "json"
+    }
+  },
+  "config": {}
+}

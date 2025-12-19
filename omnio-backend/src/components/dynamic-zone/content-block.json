@@ -1,0 +1,22 @@
+{
+  "collectionName": "components_dynamic_zone_content_blocks",
+  "info": {
+    "displayName": "Content Block",
+    "icon": "file-alt",
+    "description": "Rich text content section"
+  },
+  "options": {},
+  "attributes": {
+    "title": {
+      "type": "string"
+    },
+    "content": {
+      "type": "blocks"
+    },
+    "backgroundColor": {
+      "type": "enumeration",
+      "enum": ["white", "gray", "primary"],
+      "default": "white"
+    }
+  }
+}

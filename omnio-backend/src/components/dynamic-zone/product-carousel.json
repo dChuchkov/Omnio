@@ -1,0 +1,29 @@
+{
+  "collectionName": "components_dynamic_zone_product_carousels",
+  "info": {
+    "displayName": "Product Carousel",
+    "icon": "shopping-cart",
+    "description": "Carousel of featured products"
+  },
+  "options": {},
+  "attributes": {
+    "title": {
+      "type": "string",
+      "required": true
+    },
+    "displayType": {
+      "type": "enumeration",
+      "enum": ["featured", "new-arrivals", "on-sale", "manual"],
+      "default": "featured"
+    },
+    "products": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::product.product"
+    },
+    "maxItems": {
+      "type": "integer",
+      "default": 8
+    }
+  }
+}

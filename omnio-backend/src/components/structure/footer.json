@@ -1,0 +1,48 @@
+{
+  "collectionName": "components_structure_footers",
+  "info": {
+    "displayName": "Footer",
+    "icon": "layout"
+  },
+  "options": {},
+  "attributes": {
+    "companyDescription": {
+      "type": "text"
+    },
+    "newsletterTitle": {
+      "type": "string"
+    },
+    "newsletterDescription": {
+      "type": "text"
+    },
+    "quickLinks": {
+      "type": "component",
+      "component": "shared.link-item",
+      "repeatable": true
+    },
+    "legalLinks": {
+      "type": "component",
+      "component": "shared.link-item",
+      "repeatable": true
+    },
+    "socialLinks": {
+      "type": "component",
+      "component": "shared.link-item",
+      "repeatable": true
+    },
+    "copyrightText": {
+      "type": "string"
+    },
+    "trustBadges": {
+      "type": "media",
+      "multiple": true,
+      "allowedTypes": [
+        "images",
+        "files",
+        "videos",
+        "audios"
+      ]
+    }
+  },
+  "config": {}
+}
