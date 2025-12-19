@@ -11,6 +11,7 @@ import type {
     Cart,
     Order
 } from './types';
+import { products } from './data';
 
 const STRAPI_URL = process.env.NEXT_PUBLIC_STRAPI_API_URL || 'http://localhost:1337';
 
@@ -28,14 +29,54 @@ export function getStrapiMedia(url: string | null): string | null {
     return getStrapiURL(url);
 }
 
-async function fetchAPI<T>(path: string, urlParamsObject = {}, options = {}): Promise<T> {
-    const mergedOptions = {
-        headers: { 'Content-Type': 'application/json' },
-        ...options,
-    };
+// ---- Auth: lightweight JWT manager ----
 
-    const queryString = qs.stringify(urlParamsObject, { encodeValuesOnly: true });
+// Prefer cookie on server; localStorage on client.
+// This keeps things SSR-safe and avoids "Bearer undefined".
+export type AuthToken = string | null;
+
+let memoryToken: AuthToken = null; // server-side or fallback
+
+export function getToken(): AuthToken {
+    // Server: no window; use in-memory
+    if (typeof window === 'undefined') return memoryToken;
+    try {
+        const t = window.localStorage.getItem('jwt'); // Changed from 'omnio_jwt' to match existing code
+        return t || null;
+    } catch {
+        return memoryToken;
+    }
+}
+
+export function setToken(token: string | null) {
+    memoryToken = token;
+    if (typeof window !== 'undefined') {
+        try {
+            if (token) window.localStorage.setItem('jwt', token);
+            else window.localStorage.removeItem('jwt');
+        } catch {
+            // ignore storage errors, rely on memoryToken
+        }
+    }
+}
+
+// Builds Authorization header only if token exists.
+export function getAuthHeaders(extra?: Record<string, string>): { headers: Record<string, string> } {
+    const token = getToken();
+    const base: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) base.Authorization = `Bearer ${token}`;
+    const headers = { ...base, ...(extra || {}) };
+    return { headers };
+}
+
+async function fetchAPI<T>(path: string, urlParamsObject = {}, options: RequestInit = {}): Promise<T> {
+    const { headers: callerHeaders, ...restOptions } = options;
+
+    const queryString = qs.stringify(urlParamsObject, { encodeValuesOnly: true, arrayFormat: 'brackets' });
     const requestUrl = `${getStrapiURL()}/api${path}${queryString ? `?${queryString}` : ''}`;
+
+    // Merge auth headers (Bearer if present), callerHeaders, and default JSON content type
+    const auth = getAuthHeaders(callerHeaders as Record<string, string>);
 
     // Debug logging
     if (process.env.NODE_ENV === 'development') {
@@ -44,15 +85,25 @@ async function fetchAPI<T>(path: string, urlParamsObject = {}, options = {}): Pr
     }
 
     const response = await fetch(requestUrl, {
-        ...mergedOptions,
-        next: { revalidate: 60 } // ISR: revalidate every 60 seconds
+        ...restOptions,
+        headers: auth.headers,
+        next: { revalidate: 60, ...(restOptions as any)?.next }
     } as RequestInit & { next?: { revalidate?: number } });
 
     if (!response.ok) {
-        console.error(`API Error: ${response.status} ${response.statusText}`);
+        let msg = `${response.status} ${response.statusText}`;
+        try {
+            const text = await response.text();
+            const parsed = JSON.parse(text);
+            const errMsg = parsed?.error?.message || parsed?.message || text;
+            msg = `${msg} - ${errMsg}`;
+            console.error('[API] Error body:', parsed);
+        } catch {
+            // non-JSON error body
+        }
         // Don't throw for 404s, return null or empty
         if (response.status === 404) return null as any;
-        throw new Error(`API Error: ${response.statusText}`);
+        throw new Error(`API Error: ${msg}`);
     }
 
     const data = await response.json();
@@ -76,7 +127,7 @@ export async function getProducts(locale = 'en'): Promise<StrapiCollectionRespon
             image: true,
             images: true,
             category: {
-                populate: ['image']
+                populate: { image: true }
             }
         },
         pagination: { pageSize: 100 }
@@ -90,7 +141,7 @@ export async function getProductBySlug(slug: string, locale = 'en'): Promise<Str
         populate: {
             image: true,
             images: true,
-            category: { populate: ['image', 'parent'] }
+            category: { populate: { image: true, parent: true } }
         }
     });
 }
@@ -145,7 +196,7 @@ export async function getCategories(locale = 'en'): Promise<StrapiCollectionResp
             image: true,
             parent: true,
             children: {
-                populate: ['image']
+                populate: { image: true }
             }
         },
         pagination: { pageSize: 100 }
@@ -161,7 +212,7 @@ export async function getParentCategories(locale = 'en'): Promise<StrapiCollecti
         populate: {
             image: true,
             children: {
-                populate: ['image']
+                populate: { image: true }
             }
         }
     });
@@ -174,9 +225,9 @@ export async function getCategoryBySlug(slug: string, locale = 'en'): Promise<St
         populate: {
             image: true,
             parent: true,
-            children: { populate: ['image'] },
+            children: { populate: { image: true } },
             products: {
-                populate: ['image']
+                populate: { image: true }
             }
         }
     });
@@ -193,10 +244,10 @@ export async function getPageBySlug(slug: string, locale = 'en'): Promise<Strapi
         populate: {
             sections: {
                 on: {
-                    'dynamic-zone.hero-section': { populate: ['backgroundImage'] },
-                    'dynamic-zone.feature-grid': { populate: ['features'] },
+                    'dynamic-zone.hero-section': { populate: { backgroundImage: true } },
+                    'dynamic-zone.feature-grid': { populate: { features: true } },
                     'dynamic-zone.content-block': { populate: '*' },
-                    'dynamic-zone.product-carousel': { populate: ['category'] }
+                    'dynamic-zone.product-carousel': { populate: { products: true } }
                 }
             },
             seo: true
@@ -212,8 +263,8 @@ export async function getGlobalSettings(locale = 'en'): Promise<StrapiSingleResp
     return fetchAPI('/global-setting', {
         locale,
         populate: {
-            header: { populate: ['logo', 'navigationLinks'] },
-            footer: { populate: ['quickLinks', 'legalLinks'] },
+            header: { populate: { logo: true, navigationLinks: true } },
+            footer: { populate: { quickLinks: true, legalLinks: true } },
             defaultSeo: true
         }
     });
@@ -224,7 +275,7 @@ export async function getGlobalSettings(locale = 'en'): Promise<StrapiSingleResp
 // ============================================================
 
 export async function login(identifier: string, password: string): Promise<any> {
-    const response = await fetch(`${getStrapiURL()}/api/auth/local`, {
+    const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -237,14 +288,14 @@ export async function login(identifier: string, password: string): Promise<any> 
 
     if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error?.message || 'Login failed');
+        throw new Error(error.error || 'Login failed');
     }
 
     return response.json();
 }
 
 export async function register(username: string, email: string, password: string): Promise<any> {
-    const response = await fetch(`${getStrapiURL()}/api/auth/local/register`, {
+    const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -258,156 +309,220 @@ export async function register(username: string, email: string, password: string
 
     if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error?.message || 'Registration failed');
+        throw new Error(error.error || 'Registration failed');
     }
 
     return response.json();
 }
 
-export async function fetchUser(token: string): Promise<User> {
-    const response = await fetch(`${getStrapiURL()}/api/users/me`, {
-        headers: {
-            Authorization: `Bearer ${token}`,
-        },
+export async function logout(): Promise<any> {
+    const response = await fetch('/api/auth/logout', {
+        method: 'POST',
     });
-    if (!response.ok) throw new Error('Failed to fetch user');
+
+    if (!response.ok) {
+        throw new Error('Logout failed');
+    }
+
     return response.json();
 }
 
-// ============================================================
+export async function fetchUser(token?: string): Promise<any> {
+    if (token) {
+        // Server-side or explicit token usage
+        const response = await fetch(`${getStrapiURL()}/api/users/me`, {
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+        });
+        if (!response.ok) return null;
+        return response.json();
+    } else {
+        // Client-side proxy usage
+        const response = await fetch('/api/auth/me');
+        if (!response.ok) return null;
+        return response.json();
+    }
+}
+
 // COMMERCE (Cart & Wishlist)
 // ============================================================
 
 // CART
 
-export async function getCart(token: string, userId: number): Promise<any> {
-    const response = await fetchAPI('/carts', {
-        filters: { users_permissions_user: { id: { $eq: userId } } },
-        populate: {
-            cart_items: {
-                populate: {
-                    product: {
-                        populate: ['image']
-                    }
-                }
-            }
-        }
-    }, {
-        headers: { Authorization: `Bearer ${token}` }
-    });
-    return (response as any).data[0];
+export async function getCart(token?: string): Promise<any> {
+    if (token) {
+        // Server-side: use provided token to call Strapi directly
+        return fetchAPI('/carts/me', {}, { headers: { Authorization: `Bearer ${token}` } })
+            .then((res: any) => res?.data ?? null)
+            .catch(() => null);
+    } else {
+        // Client-side: use Proxy Route (cookie)
+        const response = await fetch('/api/cart/me', { credentials: 'include', cache: 'no-store' });
+        if (!response.ok) return null;
+        const json = await response.json();
+        return json.data ?? null;
+    }
 }
 
-export async function createCart(token: string, userId: number): Promise<any> {
-    const response = await fetch(`${getStrapiURL()}/api/carts`, {
+export async function createCart(token?: string): Promise<any> {
+    if (token) {
+        return fetch(`${getStrapiURL()}/api/carts/me`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`
+            }
+        }).then(res => res.json());
+    } else {
+        const response = await fetch('/api/cart/me', {
+            method: 'POST'
+        });
+        return response.json();
+    }
+}
+
+// addToCart now accepts either numeric id or documentId string
+export async function addToCart(productIdentifier: number | string, quantity: number): Promise<any> {
+    const payload: any = { quantity };
+
+    // If a string is passed, treat it as documentId; otherwise numeric id
+    if (typeof productIdentifier === 'string') {
+        payload.productDocumentId = productIdentifier;
+    } else {
+        payload.product = productIdentifier;
+    }
+
+    const response = await fetch('/api/cart/items', {
         method: 'POST',
+        credentials: 'include',
         headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({
-            data: {
-                users_permissions_user: userId
-            }
-        })
+        body: JSON.stringify(payload)
     });
-    return response.json();
+
+    // handle non-ok gracefully
+    if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        console.warn('addToCart proxy returned non-ok', response.status, text);
+        return null;
+    }
+
+    const json = await response.json().catch(() => null);
+    return json;
 }
 
-export async function addToCart(token: string, cartId: number, productId: number, quantity: number): Promise<any> {
-    // First check if item exists in cart
-    // This logic might be better in a custom controller, but doing it client-side for now
-    // Actually, we should just create a cart-item linked to the cart
-
-    const response = await fetch(`${getStrapiURL()}/api/cart-items`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({
-            data: {
-                cart: cartId,
-                product: productId,
-                quantity
-            }
-        })
-    });
-    return response.json();
-}
-
-export async function updateCartItem(token: string, itemId: number, quantity: number): Promise<any> {
-    const response = await fetch(`${getStrapiURL()}/api/cart-items/${itemId}`, {
+export async function updateCartItem(itemId: number, quantity: number): Promise<any> {
+    const response = await fetch(`/api/cart/items/${itemId}`, {
         method: 'PUT',
         headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
         },
         body: JSON.stringify({
-            data: {
-                quantity
-            }
-        })
+            quantity
+        }),
+        credentials: 'include'
     });
     return response.json();
 }
 
-export async function removeFromCart(token: string, itemId: number): Promise<any> {
-    const response = await fetch(`${getStrapiURL()}/api/cart-items/${itemId}`, {
+export async function removeFromCart(itemId: number): Promise<any> {
+    const response = await fetch(`/api/cart/items/${itemId}`, {
         method: 'DELETE',
-        headers: {
-            Authorization: `Bearer ${token}`
-        }
+        credentials: 'include'
     });
     return response.json();
 }
 
 // WISHLIST
 
-export async function getWishlist(token: string, userId: number): Promise<any> {
-    const response = await fetchAPI('/wishlists', {
-        filters: { user: { id: { $eq: userId } } },
-        populate: {
-            products: {
-                populate: ['image']
+export async function getWishlist(token?: string, userId?: number): Promise<any> {
+    if (token && userId) {
+        return fetchAPI('/wishlists', {
+            filters: { user: { id: { $eq: userId } } },
+            populate: {
+                products: {
+                    populate: { image: true }
+                }
             }
-        }
-    }, {
-        headers: { Authorization: `Bearer ${token}` }
-    });
-    return (response as any).data[0];
+        }, {
+            headers: { Authorization: `Bearer ${token}` }
+        }).then((res: any) => res.data?.[0] ?? null);
+    } else if (userId) {
+        const query = qs.stringify({
+            filters: { user: { id: { $eq: userId } } },
+            populate: {
+                products: {
+                    populate: { image: true }
+                }
+            }
+        }, { encodeValuesOnly: true, arrayFormat: 'brackets' });
+
+        const response = await fetch(`/api/wishlist?${query}`, { cache: 'no-store' });
+        if (!response.ok) return null;
+        const json = await response.json();
+        return json.data?.[0] ?? null;
+    }
+    return null;
 }
 
-export async function createWishlist(token: string, userId: number): Promise<any> {
-    const response = await fetch(`${getStrapiURL()}/api/wishlists`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({
-            data: {
-                user: userId,
-                products: []
-            }
-        })
-    });
-    return response.json();
+export async function createWishlist(token?: string, userId?: number): Promise<any> {
+    if (!userId) throw new Error('User ID required');
+
+    if (token) {
+        return fetch(`${getStrapiURL()}/api/wishlists`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                data: {
+                    user: userId,
+                    products: []
+                }
+            })
+        }).then(res => res.json());
+    } else {
+        const response = await fetch('/api/wishlist', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                data: {
+                    user: userId,
+                    products: []
+                }
+            })
+        });
+        return response.json();
+    }
 }
 
-export async function updateWishlist(token: string, wishlistId: number, productIds: number[]): Promise<any> {
-    const response = await fetch(`${getStrapiURL()}/api/wishlists/${wishlistId}`, {
-        method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({
-            data: {
-                products: productIds
-            }
-        })
-    });
-    return response.json();
+export async function updateWishlist(token: string | undefined, wishlistId: number, productIds: number[]): Promise<any> {
+    if (token) {
+        return fetch(`${getStrapiURL()}/api/wishlists/${wishlistId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                data: {
+                    products: productIds
+                }
+            })
+        }).then(res => res.json());
+    } else {
+        const response = await fetch(`/api/wishlist/${wishlistId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                data: {
+                    products: productIds
+                }
+            })
+        });
+        return response.json();
+    }
 }
-

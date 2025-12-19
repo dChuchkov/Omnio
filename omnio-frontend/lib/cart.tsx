@@ -14,8 +14,8 @@ interface CartItem {
 interface CartContextType {
   items: CartItem[]
   addToCart: (product: Product, quantity: number) => Promise<void>
-  removeFromCart: (productId: number) => Promise<void>
-  updateQuantity: (productId: number, quantity: number) => Promise<void>
+  removeFromCart: (cartItemId: number) => Promise<void>
+  updateQuantity: (cartItemId: number, quantity: number) => Promise<void>
   clearCart: () => void
   totalItems: number
   totalPrice: number
@@ -35,24 +35,36 @@ export function CartProvider({ children }: { children: ReactNode }) {
       if (user) {
         setIsLoading(true)
         try {
-          const token = localStorage.getItem("jwt")
-          if (!token) return
-
-          let cart = await getCart(token, user.id)
+          // No token needed for client-side proxy calls
+          let cart = await getCart()
+          console.log('CartProvider: Fetched cart:', cart)
 
           if (!cart) {
             // Create cart if not exists
-            const newCartRes = await createCart(token, user.id)
+            console.log('CartProvider: Cart not found, creating new cart...')
+            const newCartRes = await createCart()
             cart = newCartRes.data
+            console.log('CartProvider: Created new cart:', cart)
           }
 
           if (cart && cart.cart_items) {
-            const mappedItems = cart.cart_items.map((item: any) => ({
-              id: item.id,
-              product: item.product,
-              quantity: item.quantity
-            }))
+            console.log('CartProvider: Mapping items:', cart.cart_items)
+            const mappedItems = (cart.cart_items ?? []).map((item: any) => {
+              const prod = item.product?.data ?? item.product;
+              if (!prod) {
+                console.warn('CartProvider: cart_item has no product relation', item.id);
+              }
+              return {
+                id: item.id,
+                product: prod,
+                quantity: item.quantity
+              };
+            });
+            console.log('CartProvider: Mapped items:', mappedItems)
             setItems(mappedItems)
+          } else {
+            console.log('CartProvider: No items found in cart')
+            setItems([])
           }
         } catch (error) {
           console.error("Failed to fetch cart:", error)
@@ -82,38 +94,39 @@ export function CartProvider({ children }: { children: ReactNode }) {
     if (user) {
       setIsLoading(true)
       try {
-        const token = localStorage.getItem("jwt")
-        if (!token) return
-
         // Check if item exists in current state to get its ID (if we want to update)
-        // But for now, let's assume we just add new line item or backend handles merge?
-        // Our backend schema allows multiple lines for same product (unidirectional many-to-one/one-to-one mess we fixed).
-        // Actually, we should check if product is already in cart items.
-
-        const existingItem = items.find(item => item.product.id === product.id)
+        const existingItem = items.find(item => item.product?.id === product.id)
 
         if (existingItem && existingItem.id) {
           // Update quantity
-          await apiUpdateCartItem(token, existingItem.id, existingItem.quantity + quantity)
+          await apiUpdateCartItem(existingItem.id, existingItem.quantity + quantity)
         } else {
-          // Get cart ID first
-          let cart = await getCart(token, user.id)
-          if (!cart) {
-            const newCartRes = await createCart(token, user.id)
-            cart = newCartRes.data
+          // Add new item
+          // Prefer documentId (Strapi v5) if available, otherwise numeric id
+          const identifier = (product as any).documentId ?? product.id;
+          if (!(product as any).documentId) {
+            console.warn('Product missing documentId; sending numeric id. Product:', product.id);
           }
-          await apiAddToCart(token, cart.id, product.id, quantity)
+          await apiAddToCart(identifier, quantity)
         }
 
         // Refresh cart
-        const updatedCart = await getCart(token, user.id)
+        const updatedCart = await getCart()
         if (updatedCart && updatedCart.cart_items) {
-          const mappedItems = updatedCart.cart_items.map((item: any) => ({
-            id: item.id,
-            product: item.product,
-            quantity: item.quantity
-          }))
+          const mappedItems = (updatedCart.cart_items ?? []).map((item: any) => {
+            const prod = item.product?.data ?? item.product;
+            if (!prod) {
+              console.warn('CartProvider: cart_item has no product relation', item.id);
+            }
+            return {
+              id: item.id,
+              product: prod,
+              quantity: item.quantity
+            };
+          });
           setItems(mappedItems)
+        } else {
+          setItems([])
         }
 
       } catch (error) {
@@ -123,10 +136,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
       }
     } else {
       setItems((prevItems) => {
-        const existingItem = prevItems.find((item) => item.product.id === product.id)
+        const existingItem = prevItems.find((item) => item.product?.id === product.id)
         if (existingItem) {
           return prevItems.map((item) =>
-            item.product.id === product.id ? { ...item, quantity: item.quantity + quantity } : item,
+            item.product?.id === product.id ? { ...item, quantity: item.quantity + quantity } : item,
           )
         } else {
           return [...prevItems, { product, quantity }]
@@ -135,25 +148,27 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const removeFromCart = async (productId: number) => {
+  const removeFromCart = async (cartItemId: number) => {
     if (user) {
       setIsLoading(true)
       try {
-        const token = localStorage.getItem("jwt")
-        if (!token) return
-
-        const item = items.find(i => i.product.id === productId)
-        if (item && item.id) {
-          await apiRemoveFromCart(token, item.id)
+        if (cartItemId) {
+          await apiRemoveFromCart(cartItemId)
 
           // Refresh
-          const updatedCart = await getCart(token, user.id)
+          const updatedCart = await getCart()
           if (updatedCart && updatedCart.cart_items) {
-            const mappedItems = updatedCart.cart_items.map((item: any) => ({
-              id: item.id,
-              product: item.product,
-              quantity: item.quantity
-            }))
+            const mappedItems = (updatedCart.cart_items ?? []).map((item: any) => {
+              const prod = item.product?.data ?? item.product;
+              if (!prod) {
+                console.warn('CartProvider: cart_item has no product relation', item.id);
+              }
+              return {
+                id: item.id,
+                product: prod,
+                quantity: item.quantity
+              };
+            });
             setItems(mappedItems)
           } else {
             setItems([])
@@ -165,36 +180,44 @@ export function CartProvider({ children }: { children: ReactNode }) {
         setIsLoading(false)
       }
     } else {
-      setItems((prevItems) => prevItems.filter((item) => item.product.id !== productId))
+      setItems((prev) => prev.filter((item) => item.product?.id !== cartItemId)) // guest path unchanged if you keep productId for guests
     }
   }
 
-  const updateQuantity = async (productId: number, quantity: number) => {
+  const updateQuantity = async (cartItemId: number, quantity: number) => {
     if (quantity <= 0) {
-      await removeFromCart(productId)
+      await removeFromCart(cartItemId)
       return
     }
 
     if (user) {
-      // Debouncing would be good here, but for simplicity direct call
       try {
-        const token = localStorage.getItem("jwt")
-        if (!token) return
+        // optimistic update by cartItemId
+        setItems((prev) => prev.map((it) => (it.id === cartItemId ? { ...it, quantity } : it)))
+        await apiUpdateCartItem(cartItemId, quantity)
 
-        const item = items.find(i => i.product.id === productId)
-        if (item && item.id) {
-          // Optimistic update
-          setItems((prevItems) => prevItems.map((item) => (item.product.id === productId ? { ...item, quantity } : item)))
-
-          await apiUpdateCartItem(token, item.id, quantity)
-          // No need to refresh full cart for quantity update if we trust optimistic
+        // re-fetch to ensure canonical state:
+        const updatedCart = await getCart()
+        if (updatedCart && updatedCart.cart_items) {
+          const mappedItems = (updatedCart.cart_items ?? []).map((item: any) => {
+            const prod = item.product?.data ?? item.product;
+            if (!prod) {
+              console.warn('CartProvider: cart_item has no product relation', item.id);
+            }
+            return {
+              id: item.id,
+              product: prod,
+              quantity: item.quantity
+            };
+          });
+          setItems(mappedItems)
         }
       } catch (error) {
         console.error("Failed to update quantity:", error)
-        // Revert on error?
+        // optionally re-fetch on error to revert optimistic update
       }
     } else {
-      setItems((prevItems) => prevItems.map((item) => (item.product.id === productId ? { ...item, quantity } : item)))
+      setItems((prev) => prev.map((it) => (it.product?.id === cartItemId ? { ...it, quantity } : it)))
     }
   }
 
@@ -203,14 +226,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
     if (!user) {
       localStorage.removeItem("guest_cart")
     }
-    // For auth user, we might want to delete all items? Or just clear local state?
-    // Usually clearCart implies emptying the cart.
-    // Implementing delete all items is expensive loop.
-    // For now just clear local state.
   }
 
-  const totalItems = items.reduce((sum, item) => sum + item.quantity, 0)
-  const totalPrice = items.reduce((sum, item) => sum + item.product.price * item.quantity, 0)
+  const totalItems = items.reduce((sum, item) => sum + (item.quantity || 0), 0)
+  const totalPrice = items.reduce((sum, item) => sum + (item.product?.price || 0) * (item.quantity || 0), 0)
 
   return (
     <CartContext.Provider

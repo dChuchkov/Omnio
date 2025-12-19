@@ -37,9 +37,9 @@ export default function Home() {
         console.log('[Homepage] Page data:', fetchedPage);
         console.log('[Homepage] Featured products count:', fetchedProducts.length);
         console.log('[Homepage] Featured products:', fetchedProducts);
-      } catch (err) {
+      } catch (err: any) {
         console.error('Failed to load home page:', err);
-        setError('Failed to load page content');
+        setError(err.message || 'Unknown error');
       } finally {
         setLoading(false);
       }
@@ -62,7 +62,8 @@ export default function Home() {
   if (error) {
     return (
       <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
-        <p className="text-red-800">{error}</p>
+        <p className="text-red-800">Failed to load page content: {error}</p>
+        <p className="text-sm text-red-600 mt-2">Check console for details.</p>
       </div>
     );
   }
@@ -92,7 +93,7 @@ export default function Home() {
 
       {/* Featured Products Carousel */}
       {featuredProducts && featuredProducts.length > 0 ? (
-        <ProductCarousel products={featuredProducts} title="Featured Products" viewAllLink="/category/featured" />
+        <ProductCarousel products={featuredProducts} title="Special Offers" viewAllLink="/category/featured" />
       ) : (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
           <p className="text-yellow-800">No featured products found. Make sure products have "isFeatured" set to true in Strapi.</p>

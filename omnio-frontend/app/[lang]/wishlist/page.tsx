@@ -12,16 +12,24 @@ import { useWishlist } from "@/lib/wishlist"
 import { useCart } from "@/lib/cart"
 
 export default function WishlistPage() {
-  const { user } = useAuth()
+  const { user, isLoading } = useAuth()
   const { items, removeFromWishlist } = useWishlist()
   const { addToCart } = useCart()
   const router = useRouter()
 
   useEffect(() => {
-    if (!user) {
+    if (!isLoading && !user) {
       router.push("/signin?redirect=/wishlist")
     }
-  }, [user, router])
+  }, [user, isLoading, router])
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600"></div>
+      </div>
+    )
+  }
 
   if (!user) {
     return (

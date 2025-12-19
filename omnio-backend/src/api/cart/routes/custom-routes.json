@@ -1,0 +1,34 @@
+{
+    "routes": [
+        {
+            "method": "GET",
+            "path": "/carts/me",
+            "handler": "cart.me",
+            "config": {}
+        },
+        {
+            "method": "POST",
+            "path": "/carts/me",
+            "handler": "cart.createForMe",
+            "config": {}
+        },
+        {
+            "method": "POST",
+            "path": "/carts/me/items",
+            "handler": "cart.addItem",
+            "config": {}
+        },
+        {
+            "method": "PUT",
+            "path": "/carts/me/items/:id",
+            "handler": "cart.updateItem",
+            "config": {}
+        },
+        {
+            "method": "DELETE",
+            "path": "/carts/me/items/:id",
+            "handler": "cart.removeItem",
+            "config": {}
+        }
+    ]
+}

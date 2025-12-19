@@ -27,19 +27,17 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
       if (user) {
         setIsLoading(true)
         try {
-          const token = localStorage.getItem("jwt")
-          if (!token) return
-
-          let wishlist = await getWishlist(token, user.id)
+          // Pass undefined for token to use proxy
+          let wishlist = await getWishlist(undefined, user.id)
 
           if (!wishlist) {
             // Create wishlist if not exists
-            const newWishlistRes = await createWishlist(token, user.id)
+            const newWishlistRes = await createWishlist(undefined, user.id)
             wishlist = newWishlistRes.data
           }
 
           if (wishlist && wishlist.products) {
-            setItems(wishlist.products)
+            setItems(wishlist.products.filter((p: any) => !!p))
           }
         } catch (error) {
           console.error("Failed to fetch wishlist:", error)
@@ -69,27 +67,24 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
     if (user) {
       setIsLoading(true)
       try {
-        const token = localStorage.getItem("jwt")
-        if (!token) return
-
         // Check if already in wishlist
         if (items.some(item => item.id === product.id)) return
 
-        let wishlist = await getWishlist(token, user.id)
+        let wishlist = await getWishlist(undefined, user.id)
         if (!wishlist) {
-          const newWishlistRes = await createWishlist(token, user.id)
+          const newWishlistRes = await createWishlist(undefined, user.id)
           wishlist = newWishlistRes.data
         }
 
         const currentProductIds = wishlist.products ? wishlist.products.map((p: any) => p.id) : []
         const newProductIds = [...currentProductIds, product.id]
 
-        await apiUpdateWishlist(token, wishlist.id, newProductIds)
+        await apiUpdateWishlist(undefined, wishlist.id, newProductIds)
 
         // Refresh
-        const updatedWishlist = await getWishlist(token, user.id)
+        const updatedWishlist = await getWishlist(undefined, user.id)
         if (updatedWishlist && updatedWishlist.products) {
-          setItems(updatedWishlist.products)
+          setItems(updatedWishlist.products.filter((p: any) => !!p))
         }
 
       } catch (error) {
@@ -111,21 +106,18 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
     if (user) {
       setIsLoading(true)
       try {
-        const token = localStorage.getItem("jwt")
-        if (!token) return
-
-        let wishlist = await getWishlist(token, user.id)
+        let wishlist = await getWishlist(undefined, user.id)
         if (!wishlist) return // Should exist if we are removing
 
         const currentProductIds = wishlist.products ? wishlist.products.map((p: any) => p.id) : []
         const newProductIds = currentProductIds.filter((id: number) => id !== productId)
 
-        await apiUpdateWishlist(token, wishlist.id, newProductIds)
+        await apiUpdateWishlist(undefined, wishlist.id, newProductIds)
 
         // Refresh
-        const updatedWishlist = await getWishlist(token, user.id)
+        const updatedWishlist = await getWishlist(undefined, user.id)
         if (updatedWishlist && updatedWishlist.products) {
-          setItems(updatedWishlist.products)
+          setItems(updatedWishlist.products.filter((p: any) => !!p))
         } else {
           setItems([])
         }

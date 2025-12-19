@@ -1,14 +1,14 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
-import { login as apiLogin, register as apiRegister, fetchUser } from "./api"
+import { login as apiLogin, register as apiRegister, fetchUser, logout as apiLogout } from "./api"
 import type { User } from "./types"
 
 interface AuthContextType {
   user: User | null
   login: (email: string, password: string) => Promise<boolean>
   register: (firstName: string, lastName: string, email: string, password: string) => Promise<boolean>
-  logout: () => void
+  logout: () => Promise<void>
   isLoading: boolean
 }
 
@@ -19,34 +19,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    // Check for token on app start
-    const token = localStorage.getItem("jwt")
-    if (token) {
-      fetchUser(token)
-        .then((userData) => {
+    // Check for session on app start via proxy (cookie)
+    const checkSession = async () => {
+      try {
+        const userData = await fetchUser()
+        if (userData) {
           setUser(userData)
-        })
-        .catch(() => {
-          // If token is invalid, clear it
-          localStorage.removeItem("jwt")
-          localStorage.removeItem("user")
-        })
-        .finally(() => {
-          setIsLoading(false)
-        })
-    } else {
-      setIsLoading(false)
+        } else {
+          // Try guest fallback or just clear user
+          setUser(null)
+        }
+      } catch (error) {
+        console.error("Session check failed:", error)
+        setUser(null)
+      } finally {
+        setIsLoading(false)
+      }
     }
+
+    checkSession()
   }, [])
 
   const login = async (email: string, password: string): Promise<boolean> => {
     setIsLoading(true)
     try {
       const data = await apiLogin(email, password)
-
-      localStorage.setItem("jwt", data.jwt)
-      localStorage.setItem("user", JSON.stringify(data.user))
-
+      // data.user is returned from login proxy
       setUser(data.user)
       return true
     } catch (error) {
@@ -62,10 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const username = `${firstName} ${lastName}`.trim()
       const data = await apiRegister(username, email, password)
-
-      localStorage.setItem("jwt", data.jwt)
-      localStorage.setItem("user", JSON.stringify(data.user))
-
+      // data.user is returned from register proxy
       setUser(data.user)
       return true
     } catch (error) {
@@ -76,13 +71,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await apiLogout()
+    } catch (e) {
+      console.error("Logout failed", e)
+    }
     setUser(null)
+    // Clear guest data if needed
     localStorage.removeItem("jwt")
     localStorage.removeItem("user")
-    // Optional: Clear cart/wishlist if we want to reset state
-    // localStorage.removeItem("cart")
-    // localStorage.removeItem("wishlist")
+    // localStorage.removeItem("guest_cart")
+    // localStorage.removeItem("guest_wishlist")
   }
 
   return <AuthContext.Provider value={{ user, login, register, logout, isLoading }}>{children}</AuthContext.Provider>

@@ -33,8 +33,8 @@ export default async function RootLayout({
       <body className={inter.className}>
         <ClientLayout
           categories={categories}
-          header={<Header />}
-          footer={<Footer />}
+          header={<Header lang={lang} />}
+          footer={<Footer lang={lang} />}
         >
           {children}
         </ClientLayout>

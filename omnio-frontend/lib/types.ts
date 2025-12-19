@@ -98,6 +98,7 @@ export interface HeroSectionComponent {
     backgroundImage: StrapiMedia | null;
     ctaText: string | null;
     ctaUrl: string | null;
+    features?: FeatureItem[];
 }
 
 export interface FeatureGridComponent {
@@ -129,6 +130,7 @@ export interface ProductCarouselComponent {
     displayCount: number;
     showFeaturedOnly: boolean;
     category: Category | null;
+    products: Array<Product | { id: number; attributes?: any }>;
 }
 
 // ============================================================

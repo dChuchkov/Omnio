@@ -2,11 +2,11 @@
 import { getGlobalSettings, getStrapiMedia, getParentCategories } from '@/lib/api';
 import HeaderClient from './HeaderClient';
 
-export default async function Header() {
+export default async function Header({ lang }: { lang: string }) {
   try {
     const [settings, categoriesResponse] = await Promise.all([
-      getGlobalSettings('en'),
-      getParentCategories('en')
+      getGlobalSettings(lang),
+      getParentCategories(lang)
     ]);
 
     const header = settings.data.header;

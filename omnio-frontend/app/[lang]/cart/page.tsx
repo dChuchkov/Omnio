@@ -9,17 +9,26 @@ import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, Tabl
 import { Minus, Plus, Trash2 } from "lucide-react"
 import { useAuth } from "@/lib/auth"
 import { useCart } from "@/lib/cart"
+import { getStrapiMedia } from "@/lib/api"
 
 export default function CartPage() {
-  const { user } = useAuth()
+  const { user, isLoading } = useAuth()
   const { items, updateQuantity, removeFromCart, totalPrice } = useCart()
   const router = useRouter()
 
   useEffect(() => {
-    if (!user) {
+    if (!isLoading && !user) {
       router.push("/signin?redirect=/cart")
     }
-  }, [user, router])
+  }, [user, isLoading, router])
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600"></div>
+      </div>
+    )
+  }
 
   if (!user) {
     return (
@@ -78,23 +87,23 @@ export default function CartPage() {
             </TableHeader>
             <TableBody>
               {items.map((item) => (
-                <TableRow key={item.product.id}>
+                <TableRow key={item.id}>
                   <TableCell>
-                    <div className="relative h-20 w-20 overflow-hidden rounded-md border">
-                      <Image
-                        src={item.product.image?.url || "/placeholder.svg"}
-                        alt={item.product.name}
-                        fill
-                        className="object-cover"
-                      />
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div>
-                      <Link href={`/product/${item.product.id}`} className="font-medium hover:text-blue-600">
-                        {item.product.name}
-                      </Link>
-                      <p className="text-sm text-gray-500">{item.product.brand}</p>
+                    <div className="flex items-center space-x-4">
+                      <div className="relative h-16 w-16 overflow-hidden rounded-md border bg-gray-100">
+                        <Image
+                          src={getStrapiMedia(item.product.image?.url) || "/placeholder.svg"}
+                          alt={item.product.name}
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                      <div>
+                        <Link href={`/product/${item.product.slug}`} className="font-medium hover:underline">
+                          {item.product.name}
+                        </Link>
+                        <p className="text-sm text-gray-500">{item.product.category?.name}</p>
+                      </div>
                     </div>
                   </TableCell>
                   <TableCell>${item.product.price.toFixed(2)}</TableCell>
@@ -103,9 +112,9 @@ export default function CartPage() {
                       <Button
                         variant="outline"
                         size="icon"
-                        className="h-8 w-8 bg-transparent"
-                        onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
-                        disabled={item.quantity <= 1}
+                        className="h-8 w-8"
+                        onClick={() => updateQuantity(item.id ?? item.product.id, item.quantity - 1)}
+                        disabled={isLoading}
                       >
                         <Minus className="h-3 w-3" />
                       </Button>
@@ -113,20 +122,22 @@ export default function CartPage() {
                       <Button
                         variant="outline"
                         size="icon"
-                        className="h-8 w-8 bg-transparent"
-                        onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
+                        className="h-8 w-8"
+                        onClick={() => updateQuantity(item.id ?? item.product.id, item.quantity + 1)}
+                        disabled={isLoading}
                       >
                         <Plus className="h-3 w-3" />
                       </Button>
                     </div>
                   </TableCell>
-                  <TableCell className="font-medium">${(item.product.price * item.quantity).toFixed(2)}</TableCell>
+                  <TableCell>${(item.product.price * item.quantity).toFixed(2)}</TableCell>
                   <TableCell>
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
-                      onClick={() => removeFromCart(item.product.id)}
+                      className="text-red-500 hover:text-red-600"
+                      onClick={() => removeFromCart(item.id ?? item.product.id)}
+                      disabled={isLoading}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
