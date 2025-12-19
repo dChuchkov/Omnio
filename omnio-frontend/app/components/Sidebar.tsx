@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import Link from "next/link"
+import Link from "@/components/Link"
 import { cn } from "@/lib/utils"
 import { ChevronRight } from 'lucide-react'
 import type { Category } from "@/lib/types"

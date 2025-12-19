@@ -3,7 +3,7 @@
 
 import type React from "react"
 import { useState } from "react"
-import Link from "next/link"
+import Link from "@/components/Link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Facebook, Twitter, Instagram, Mail, Phone, MapPin } from "lucide-react"

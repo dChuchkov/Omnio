@@ -1,5 +1,7 @@
 "use client"
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+
+import { createContext, useContext, ReactNode } from 'react';
+import { useParams, usePathname, useRouter } from 'next/navigation';
 
 export type Locale = 'en' | 'de';
 
@@ -11,21 +13,27 @@ interface LanguageContextType {
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-    const [locale, setLocaleState] = useState<Locale>('en');
+    const params = useParams();
+    const router = useRouter();
+    const pathname = usePathname();
 
-    useEffect(() => {
-        // Check localStorage on mount
-        const saved = localStorage.getItem('locale') as Locale;
-        if (saved && (saved === 'en' || saved === 'de')) {
-            setLocaleState(saved);
-        }
-    }, []);
+    // Derive locale from URL params, fallback to 'en'
+    const locale = (params?.lang as Locale) || 'en';
 
     const setLocale = (newLocale: Locale) => {
-        setLocaleState(newLocale);
-        localStorage.setItem('locale', newLocale);
+        if (newLocale === locale) return;
+
+        // Replace the locale segment in the pathname
+        const segments = pathname.split('/');
+        // segments[0] is empty string because pathname starts with /
+        // segments[1] is the locale (e.g. 'en' or 'de')
+        segments[1] = newLocale;
+        const newPath = segments.join('/');
+
+        // Set cookie for middleware preference
         document.cookie = `NEXT_LOCALE=${newLocale}; path=/; max-age=31536000`;
-        window.location.reload();
+
+        router.push(newPath);
     };
 
     return (

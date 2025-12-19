@@ -2,9 +2,9 @@
 import { getGlobalSettings } from '@/lib/api';
 import FooterClient from './FooterClient';
 
-export default async function Footer() {
+export default async function Footer({ lang }: { lang: string }) {
   try {
-    const settings = await getGlobalSettings('en');
+    const settings = await getGlobalSettings(lang);
     const footer = settings.data.footer;
 
     return (

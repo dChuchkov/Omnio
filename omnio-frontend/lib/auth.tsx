@@ -1,20 +1,14 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
-
-interface User {
-  id: number
-  email: string
-  firstName: string
-  lastName: string
-  name: string
-}
+import { login as apiLogin, register as apiRegister, fetchUser, logout as apiLogout } from "./api"
+import type { User } from "./types"
 
 interface AuthContextType {
   user: User | null
   login: (email: string, password: string) => Promise<boolean>
   register: (firstName: string, lastName: string, email: string, password: string) => Promise<boolean>
-  logout: () => void
+  logout: () => Promise<void>
   isLoading: boolean
 }
 
@@ -25,89 +19,70 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    // Check if user is logged in on app start
-    const savedUser = localStorage.getItem("user")
-    if (savedUser) {
-      setUser(JSON.parse(savedUser))
+    // Check for session on app start via proxy (cookie)
+    const checkSession = async () => {
+      try {
+        const userData = await fetchUser()
+        if (userData) {
+          setUser(userData)
+        } else {
+          // Try guest fallback or just clear user
+          setUser(null)
+        }
+      } catch (error) {
+        console.error("Session check failed:", error)
+        setUser(null)
+      } finally {
+        setIsLoading(false)
+      }
     }
-    setIsLoading(false)
+
+    checkSession()
   }, [])
 
   const login = async (email: string, password: string): Promise<boolean> => {
     setIsLoading(true)
-
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-
-    // Check if user exists in localStorage (simulated database)
-    const users = JSON.parse(localStorage.getItem("users") || "[]")
-    const foundUser = users.find((u: any) => u.email === email && u.password === password)
-
-    if (foundUser) {
-      const userWithoutPassword = {
-        id: foundUser.id,
-        email: foundUser.email,
-        firstName: foundUser.firstName,
-        lastName: foundUser.lastName,
-        name: `${foundUser.firstName} ${foundUser.lastName}`,
-      }
-      setUser(userWithoutPassword)
-      localStorage.setItem("user", JSON.stringify(userWithoutPassword))
-      setIsLoading(false)
+    try {
+      const data = await apiLogin(email, password)
+      // data.user is returned from login proxy
+      setUser(data.user)
       return true
+    } catch (error) {
+      console.error("Login failed:", error)
+      return false
+    } finally {
+      setIsLoading(false)
     }
-
-    setIsLoading(false)
-    return false
   }
 
   const register = async (firstName: string, lastName: string, email: string, password: string): Promise<boolean> => {
     setIsLoading(true)
-
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-
-    // Check if user already exists
-    const users = JSON.parse(localStorage.getItem("users") || "[]")
-    const existingUser = users.find((u: any) => u.email === email)
-
-    if (existingUser) {
-      setIsLoading(false)
+    try {
+      const username = `${firstName} ${lastName}`.trim()
+      const data = await apiRegister(username, email, password)
+      // data.user is returned from register proxy
+      setUser(data.user)
+      return true
+    } catch (error) {
+      console.error("Registration failed:", error)
       return false
+    } finally {
+      setIsLoading(false)
     }
-
-    // Create new user
-    const newUser = {
-      id: Date.now(),
-      firstName,
-      lastName,
-      email,
-      password,
-    }
-
-    users.push(newUser)
-    localStorage.setItem("users", JSON.stringify(users))
-
-    // Auto login after registration
-    const userWithoutPassword = {
-      id: newUser.id,
-      email: newUser.email,
-      firstName: newUser.firstName,
-      lastName: newUser.lastName,
-      name: `${newUser.firstName} ${newUser.lastName}`,
-    }
-    setUser(userWithoutPassword)
-    localStorage.setItem("user", JSON.stringify(userWithoutPassword))
-
-    setIsLoading(false)
-    return true
   }
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await apiLogout()
+    } catch (e) {
+      console.error("Logout failed", e)
+    }
     setUser(null)
+    // Clear guest data if needed
+    localStorage.removeItem("jwt")
     localStorage.removeItem("user")
-    localStorage.removeItem("cart")
-    localStorage.removeItem("wishlist")
+    // localStorage.removeItem("guest_cart")
+    // localStorage.removeItem("guest_wishlist")
   }
 
   return <AuthContext.Provider value={{ user, login, register, logout, isLoading }}>{children}</AuthContext.Provider>

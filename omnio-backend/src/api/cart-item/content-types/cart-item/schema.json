@@ -7,13 +7,9 @@
     "displayName": "Cart Item"
   },
   "options": {
-    "draftAndPublish": true
+    "draftAndPublish": false
   },
-  "pluginOptions": {
-    "i18n": {
-      "localized": true
-    }
-  },
+  "pluginOptions": {},
   "attributes": {
     "cart": {
       "type": "relation",
@@ -23,17 +19,11 @@
     },
     "product": {
       "type": "relation",
-      "relation": "manyToOne",
-      "target": "api::product.product",
-      "inversedBy": "cart_items"
+      "relation": "oneToOne",
+      "target": "api::product.product"
     },
     "quantity": {
       "type": "integer",
-      "pluginOptions": {
-        "i18n": {
-          "localized": false
-        }
-      },
       "required": true,
       "default": 1
     }
