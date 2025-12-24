@@ -526,3 +526,30 @@ export async function updateWishlist(token: string | undefined, wishlistId: numb
         return response.json();
     }
 }
+
+// ORDERS
+// ============================================================
+
+export async function placeOrder(token?: string): Promise<any> {
+    if (token) {
+        return fetchAPI('/orders/place', {}, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}` }
+        });
+    } else {
+        // Fallback: use Next.js API proxy which handles the HTTP-only cookie
+        const response = await fetch('/api/orders/place', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || error.message || 'Failed to place order');
+        }
+
+        return response.json();
+    }
+}
